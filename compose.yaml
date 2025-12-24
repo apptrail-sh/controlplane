@@ -1,0 +1,15 @@
+services:
+  grafana-lgtm:
+    image: 'grafana/otel-lgtm:latest'
+    ports:
+      - '3000'
+      - '4317'
+      - '4318'
+  postgres:
+    image: 'postgres:18'
+    environment:
+      - 'POSTGRES_DB=controlplane'
+      - 'POSTGRES_PASSWORD=controlplane'
+      - 'POSTGRES_USER=controlplane'
+    ports:
+      - '5432'
