@@ -8,8 +8,8 @@ services:
   postgres:
     image: 'postgres:18'
     environment:
-      - 'POSTGRES_DB=controlplane'
-      - 'POSTGRES_PASSWORD=controlplane'
-      - 'POSTGRES_USER=controlplane'
+      - 'POSTGRES_DB=apptrail'
+      - 'POSTGRES_PASSWORD=apptrail'
+      - 'POSTGRES_USER=apptrail'
     ports:
       - '5432'
