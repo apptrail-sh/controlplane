@@ -1,6 +1,8 @@
 package sh.apptrail.controlplane.web.controller
 
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
@@ -54,6 +56,43 @@ class WorkloadController(
         }
       )
     }
+  }
+
+  @GetMapping("/{id}")
+  fun getWorkload(@PathVariable id: Long): ResponseEntity<WorkloadResponse> {
+    val workload = workloadRepository.findById(id).orElse(null) ?: return ResponseEntity.notFound().build()
+    val instances = workloadInstanceRepository.findByWorkloadIn(listOf(workload))
+
+    return ResponseEntity.ok(
+      WorkloadResponse(
+        id = workload.id ?: 0,
+        group = workload.group ?: "",
+        kind = workload.kind ?: "",
+        name = workload.name ?: "",
+        team = workload.team,
+        createdAt = workload.createdAt,
+        updatedAt = workload.updatedAt,
+        instances = instances.map { instance ->
+          WorkloadInstanceResponse(
+            id = instance.id ?: 0,
+            workloadId = workload.id ?: 0,
+            clusterId = instance.cluster.id ?: 0,
+            cluster = ClusterResponse(
+              id = instance.cluster.id ?: 0,
+              name = instance.cluster.name,
+            ),
+            namespace = instance.namespace,
+            environment = instance.environment,
+            currentVersion = instance.currentVersion,
+            labels = instance.labels,
+            firstSeenAt = instance.firstSeenAt,
+            lastUpdatedAt = instance.lastUpdatedAt,
+            createdAt = instance.createdAt,
+            updatedAt = instance.updatedAt,
+          )
+        }
+      )
+    )
   }
 }
 
