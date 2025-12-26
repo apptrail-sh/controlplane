@@ -10,6 +10,21 @@ app:
     pubsub:
       enabled: false
     team-label: team
+  cors:
+    allowed-origins:
+      - "http://localhost:5173"
+      - "http://localhost:3000"
+    allowed-methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "PATCH"
+      - "DELETE"
+      - "OPTIONS"
+    allowed-headers:
+      - "*"
+    allow-credentials: false
+    max-age: 3600
 
 server:
   port: 3000
