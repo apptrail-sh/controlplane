@@ -1,4 +1,4 @@
-package sh.apptrail.controlplane.entity.base
+package sh.apptrail.controlplane.infrastructure.persistence.entity.base
 
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
