@@ -1,6 +1,7 @@
 package sh.apptrail.controlplane.web.controller
 
 import org.springframework.http.ResponseEntity
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -9,7 +10,8 @@ import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
 import sh.apptrail.controlplane.infrastructure.ingress.http.HttpAgentEventIngester
 
 @RestController
-@RequestMapping("/api/agent/events")
+@RequestMapping("/ingest/v1/agent/events")
+@ConditionalOnProperty(prefix = "app.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class AgentEventController(
   private val ingester: HttpAgentEventIngester,
 ) {

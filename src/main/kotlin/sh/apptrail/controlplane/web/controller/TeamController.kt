@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/api/teams")
+@RequestMapping("/api/v1/teams")
 class TeamController(
 ) {
     @GetMapping

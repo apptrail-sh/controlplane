@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.service.WorkloadService
 
 @RestController
-@RequestMapping("/api/workloads")
+@RequestMapping("/api/v1/workloads")
 class WorkloadController(
   private val workloadService: WorkloadService,
 ) {
