@@ -3,7 +3,7 @@ package sh.apptrail.controlplane.infrastructure.persistence.entity.base
 import jakarta.persistence.*
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
-import java.time.ZonedDateTime
+import java.time.Instant
 
 
 @Access(AccessType.FIELD) // makes it unambiguous that annotations apply to fields
@@ -11,13 +11,28 @@ import java.time.ZonedDateTime
 class BaseEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   var id: Long? = null
 
   @field:CreatedDate
-  var createdAt: ZonedDateTime? = null
+  @field:Column(name = "created_at", nullable = false)
+  var createdAt: Instant? = null
 
   @field:LastModifiedDate
-  var updatedAt: ZonedDateTime? = null
+  @field:Column(name = "updated_at", nullable = false)
+  var updatedAt: Instant? = null
 
+  @PrePersist
+  fun onCreate() {
+    val now = Instant.now()
+    if (createdAt == null) {
+      createdAt = now
+    }
+    updatedAt = now
+  }
+
+  @PreUpdate
+  fun onUpdate() {
+    updatedAt = Instant.now()
+  }
 }

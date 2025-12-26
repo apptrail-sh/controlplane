@@ -10,6 +10,7 @@ class HttpAgentEventMapper {
     return AgentEvent(
       eventId = payload.eventId,
       occurredAt = payload.occurredAt,
+      environment = payload.environment,
       source = payload.source,
       workload = payload.workload,
       labels = payload.labels,

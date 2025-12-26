@@ -8,8 +8,8 @@ CREATE TABLE workloads
     kind       VARCHAR(63)  NOT NULL,
     name       VARCHAR(253) NOT NULL,
     team       VARCHAR(128),
-    created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Unique constraint: A workload is unique by group, kind, and name
@@ -29,10 +29,10 @@ CREATE TABLE workload_instances
     environment     VARCHAR(32)  NOT NULL,
     current_version VARCHAR(128),
     labels          JSONB,
-    first_seen_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    last_updated_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    first_seen_at   TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_updated_at TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_instance_workload FOREIGN KEY (workload_id)
         REFERENCES workloads (id) ON DELETE CASCADE,
     CONSTRAINT fk_instance_cluster FOREIGN KEY (cluster_id)
@@ -43,6 +43,8 @@ CREATE TABLE workload_instances
 CREATE UNIQUE INDEX idx_instance_unique ON workload_instances (workload_id, cluster_id, namespace);
 CREATE INDEX idx_instance_workload ON workload_instances (workload_id);
 CREATE INDEX idx_instance_cluster ON workload_instances (cluster_id);
+CREATE INDEX idx_instance_cluster_namespace ON workload_instances (cluster_id, namespace);
 CREATE INDEX idx_instance_namespace ON workload_instances (namespace);
 CREATE INDEX idx_instance_environment ON workload_instances (environment);
+CREATE INDEX idx_instance_workload_environment ON workload_instances (workload_id, environment);
 CREATE INDEX idx_instance_last_updated ON workload_instances (last_updated_at DESC);

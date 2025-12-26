@@ -51,6 +51,7 @@ data class ErrorDetail(
 data class AgentEvent(
   val eventId: String,
   val occurredAt: Instant,
+  val environment: String,
   val source: SourceMetadata,
   val workload: WorkloadRef,
   val labels: Map<String, String>,

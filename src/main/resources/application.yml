@@ -2,9 +2,14 @@ spring:
   application:
     name: controlplane
 
+
 app:
   ingest:
     http:
       enabled: true
     pubsub:
       enabled: false
+    team-label: team
+
+server:
+  port: 3000
