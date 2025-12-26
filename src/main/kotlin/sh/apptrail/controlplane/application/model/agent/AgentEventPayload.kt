@@ -1,14 +1,16 @@
 package sh.apptrail.controlplane.application.model.agent
 
+import java.time.Instant
+
 data class AgentEventPayload(
-  val id: String,
-  val metadata: AgentEventMetadata,
+  val eventId: String,
+  val occurredAt: Instant,
+  val source: SourceMetadata,
+  val workload: WorkloadRef,
   val labels: Map<String, String>,
-  val type: AgentEventType,
-  val workloadType: WorkloadMetadata,
-  val currentVersion: String,
-  val previousVersion: String?,
-  val deploymentPhase: String?,
-  val statusMessage: String?,
-  val statusReason: String?,
+  val kind: AgentEventKind,
+  val outcome: AgentEventOutcome?,
+  val revision: Revision?,
+  val phase: DeploymentPhase?,
+  val error: ErrorDetail?,
 )

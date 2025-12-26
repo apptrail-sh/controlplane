@@ -8,16 +8,16 @@ import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
 class HttpAgentEventMapper {
   fun toAgentEvent(payload: AgentEventPayload): AgentEvent {
     return AgentEvent(
-      id = payload.id,
-      metadata = payload.metadata,
+      eventId = payload.eventId,
+      occurredAt = payload.occurredAt,
+      source = payload.source,
+      workload = payload.workload,
       labels = payload.labels,
-      type = payload.type,
-      workloadType = payload.workloadType,
-      currentVersion = payload.currentVersion,
-      previousVersion = payload.previousVersion,
-      deploymentPhase = payload.deploymentPhase,
-      statusMessage = payload.statusMessage,
-      statusReason = payload.statusReason,
+      kind = payload.kind,
+      outcome = payload.outcome,
+      revision = payload.revision,
+      phase = payload.phase,
+      error = payload.error,
     )
   }
 }
