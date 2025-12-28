@@ -21,3 +21,5 @@ CREATE TABLE version_history
 
 CREATE INDEX idx_version_history_instance_detected ON version_history (workload_instance_id, detected_at DESC);
 CREATE INDEX idx_version_history_detected ON version_history (detected_at DESC);
+CREATE UNIQUE INDEX idx_version_history_unique_version
+    ON version_history (workload_instance_id, current_version, COALESCE(previous_version, ''));

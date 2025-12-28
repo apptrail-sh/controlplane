@@ -1,7 +1,7 @@
 package sh.apptrail.controlplane.infrastructure.persistence.entity
 
-import jakarta.persistence.Entity
 import jakarta.persistence.Column
+import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import sh.apptrail.controlplane.infrastructure.persistence.entity.base.BaseEntity
 

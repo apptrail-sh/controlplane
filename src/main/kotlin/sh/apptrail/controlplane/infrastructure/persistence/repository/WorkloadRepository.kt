@@ -5,4 +5,5 @@ import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
 
 interface WorkloadRepository : JpaRepository<WorkloadEntity, Long> {
   fun findByGroupAndKindAndName(group: String, kind: String, name: String): WorkloadEntity?
+  fun findByTeam(team: String): List<WorkloadEntity>
 }

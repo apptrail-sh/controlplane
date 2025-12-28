@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
+import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import java.time.Instant
 
 @RestController
@@ -14,6 +15,7 @@ import java.time.Instant
 class WorkloadController(
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
+  private val versionHistoryRepository: VersionHistoryRepository,
 ) {
   @GetMapping
   fun listWorkloads(): List<WorkloadResponse> {
@@ -94,6 +96,33 @@ class WorkloadController(
       )
     )
   }
+
+  @GetMapping("/{id}/history")
+  fun getWorkloadHistory(@PathVariable id: Long): ResponseEntity<List<VersionHistoryResponse>> {
+    val instance = workloadInstanceRepository.findById(id).orElse(null)
+      ?: return ResponseEntity.notFound().build()
+
+    val history = versionHistoryRepository.findByWorkloadInstance_IdOrderByDetectedAtDesc(id)
+    return ResponseEntity.ok(
+      history.map { entry ->
+        VersionHistoryResponse(
+          id = entry.id ?: 0,
+          workloadInstanceId = instance.id ?: id,
+          previousVersion = entry.previousVersion,
+          currentVersion = entry.currentVersion,
+          eventType = "deployment",
+          deploymentDurationSeconds = entry.deploymentDurationSeconds,
+          deploymentStatus = entry.deploymentStatus,
+          deploymentPhase = entry.deploymentPhase,
+          deploymentStartedAt = entry.deploymentStartedAt,
+          deploymentCompletedAt = entry.deploymentCompletedAt,
+          deploymentFailedAt = entry.deploymentFailedAt,
+          detectedAt = entry.detectedAt,
+          createdAt = entry.createdAt,
+        )
+      }
+    )
+  }
 }
 
 data class WorkloadResponse(
@@ -125,4 +154,20 @@ data class WorkloadInstanceResponse(
 data class ClusterResponse(
   val id: Long,
   val name: String,
+)
+
+data class VersionHistoryResponse(
+  val id: Long,
+  val workloadInstanceId: Long,
+  val previousVersion: String?,
+  val currentVersion: String,
+  val eventType: String,
+  val deploymentDurationSeconds: Int?,
+  val deploymentStatus: String?,
+  val deploymentPhase: String?,
+  val deploymentStartedAt: Instant?,
+  val deploymentCompletedAt: Instant?,
+  val deploymentFailedAt: Instant?,
+  val detectedAt: Instant,
+  val createdAt: Instant?,
 )
