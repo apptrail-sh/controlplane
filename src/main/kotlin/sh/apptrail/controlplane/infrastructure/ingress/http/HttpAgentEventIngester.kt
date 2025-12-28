@@ -2,8 +2,8 @@ package sh.apptrail.controlplane.infrastructure.ingress.http
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
-import sh.apptrail.controlplane.application.service.agent.AgentEventProcessorService
 import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
+import sh.apptrail.controlplane.application.service.agent.AgentEventProcessorService
 
 @Component
 @ConditionalOnProperty(prefix = "app.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)

@@ -73,6 +73,12 @@ class AgentEventProcessorService(
 
     val revision = eventPayload.revision
     if (revision != null && revision.current.isNotBlank()) {
+      val currentVersion = revision.current.trim()
+      var previousVersion = revision.previous?.ifBlank { null }
+      if (previousVersion == currentVersion) {
+        previousVersion = null
+      }
+
       val phaseValue = eventPayload.phase?.name?.lowercase()
       val statusValue = when (eventPayload.outcome) {
         AgentEventOutcome.SUCCEEDED -> "success"
@@ -81,11 +87,52 @@ class AgentEventProcessorService(
       }
       val detectedAt = eventPayload.occurredAt
 
+      val latest = versionHistoryRepository.findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstance.id!!)
+      if (latest != null && latest.currentVersion == currentVersion) {
+        val phaseChanged = phaseValue != null && phaseValue != latest.deploymentPhase
+        val statusChanged = statusValue != null && statusValue != latest.deploymentStatus
+        if (!phaseChanged && !statusChanged) {
+          return
+        }
+
+        if (phaseValue != null) {
+          latest.deploymentPhase = phaseValue
+          when (eventPayload.phase) {
+            DeploymentPhase.PENDING -> {}
+            DeploymentPhase.PROGRESSING -> {
+              if (latest.deploymentStartedAt == null) {
+                latest.deploymentStartedAt = detectedAt
+              }
+            }
+            DeploymentPhase.COMPLETED -> {
+              latest.deploymentCompletedAt = detectedAt
+            }
+            DeploymentPhase.FAILED -> {
+              latest.deploymentFailedAt = detectedAt
+            }
+            null -> {}
+          }
+        }
+        if (statusValue != null) {
+          latest.deploymentStatus = statusValue
+        }
+        latest.detectedAt = detectedAt
+        versionHistoryRepository.save(latest)
+        return
+      }
+
+      if (latest != null && previousVersion == null) {
+        previousVersion = latest.currentVersion
+        if (previousVersion == currentVersion) {
+          previousVersion = null
+        }
+      }
+
       versionHistoryRepository.save(
         VersionHistoryEntity(
           workloadInstance = workloadInstance,
-          previousVersion = revision.previous,
-          currentVersion = revision.current,
+          previousVersion = previousVersion,
+          currentVersion = currentVersion,
           deploymentStatus = statusValue,
           deploymentPhase = phaseValue,
           deploymentStartedAt = when (eventPayload.phase) {
