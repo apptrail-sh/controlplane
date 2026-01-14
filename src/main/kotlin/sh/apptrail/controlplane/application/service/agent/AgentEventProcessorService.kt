@@ -63,10 +63,11 @@ class AgentEventProcessorService(
     }
 
     val now = Instant.now()
-    if (workloadInstance.firstSeenAt == null) {
+    val isNewInstance = workloadInstance.firstSeenAt == null
+    if (isNewInstance) {
       workloadInstance.firstSeenAt = now
+      workloadInstance.lastUpdatedAt = now
     }
-    workloadInstance.lastUpdatedAt = now
     workloadInstance.currentVersion = eventPayload.revision?.current
     workloadInstance.labels = eventPayload.labels
     workloadInstanceRepository.save(workloadInstance)
@@ -89,6 +90,7 @@ class AgentEventProcessorService(
 
       val latest = versionHistoryRepository.findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstance.id!!)
       if (latest != null && latest.currentVersion == currentVersion) {
+        // Same version - only update phase/status, NOT lastUpdatedAt
         val phaseChanged = phaseValue != null && phaseValue != latest.deploymentPhase
         val statusChanged = statusValue != null && statusValue != latest.deploymentStatus
         if (!phaseChanged && !statusChanged) {
@@ -106,9 +108,23 @@ class AgentEventProcessorService(
             }
             DeploymentPhase.COMPLETED -> {
               latest.deploymentCompletedAt = detectedAt
+              // Calculate duration if we have both timestamps
+              if (latest.deploymentStartedAt != null) {
+                latest.deploymentDurationSeconds = java.time.Duration.between(
+                  latest.deploymentStartedAt,
+                  detectedAt
+                ).seconds.toInt()
+              }
             }
             DeploymentPhase.FAILED -> {
               latest.deploymentFailedAt = detectedAt
+              // Calculate duration if we have start time (time until failure)
+              if (latest.deploymentStartedAt != null && latest.deploymentDurationSeconds == null) {
+                latest.deploymentDurationSeconds = java.time.Duration.between(
+                  latest.deploymentStartedAt,
+                  detectedAt
+                ).seconds.toInt()
+              }
             }
             null -> {}
           }
@@ -127,6 +143,10 @@ class AgentEventProcessorService(
           previousVersion = null
         }
       }
+
+      // New version detected - update lastUpdatedAt
+      workloadInstance.lastUpdatedAt = now
+      workloadInstanceRepository.save(workloadInstance)
 
       versionHistoryRepository.save(
         VersionHistoryEntity(
