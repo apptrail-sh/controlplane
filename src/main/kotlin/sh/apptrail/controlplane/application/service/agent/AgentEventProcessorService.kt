@@ -10,6 +10,7 @@ import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadInstanceEntity
+import sh.apptrail.controlplane.application.service.VersionImpactAnalysisService
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
@@ -24,6 +25,7 @@ class AgentEventProcessorService(
   private val versionHistoryRepository: VersionHistoryRepository,
   @Value("\${app.ingest.team-label:team}")
   private val teamLabelKey: String,
+  private val versionImpactAnalysisService: VersionImpactAnalysisService? = null,
 ) {
 
   @Transactional
@@ -134,6 +136,10 @@ class AgentEventProcessorService(
         }
         latest.detectedAt = detectedAt
         versionHistoryRepository.save(latest)
+
+        if (eventPayload.phase == DeploymentPhase.COMPLETED) {
+          versionImpactAnalysisService?.scheduleAnalysis(latest.id!!)
+        }
         return
       }
 
@@ -148,7 +154,7 @@ class AgentEventProcessorService(
       workloadInstance.lastUpdatedAt = now
       workloadInstanceRepository.save(workloadInstance)
 
-      versionHistoryRepository.save(
+      val savedVersionHistory = versionHistoryRepository.save(
         VersionHistoryEntity(
           workloadInstance = workloadInstance,
           previousVersion = previousVersion,
@@ -170,6 +176,10 @@ class AgentEventProcessorService(
           detectedAt = detectedAt,
         )
       )
+
+      if (eventPayload.phase == DeploymentPhase.COMPLETED) {
+        versionImpactAnalysisService?.scheduleAnalysis(savedVersionHistory.id!!)
+      }
     }
   }
 

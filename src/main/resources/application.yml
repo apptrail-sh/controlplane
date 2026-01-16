@@ -11,6 +11,38 @@ app:
     pubsub:
       enabled: false
     team-label: team
+  version-impact-analysis:
+    enabled: false
+    delay-minutes: 15
+    window-minutes: 15
+    poll-interval-seconds: 60
+    max-concurrent-analyses: 5
+    # Metrics configuration - defaults are pre-configured for kube-prometheus-stack
+    # Uncomment and modify to customize queries or thresholds
+    # metrics:
+    #   cpu:
+    #     enabled: true
+    #     threshold-percent: 20.0
+    #     query: "..."  # Override default query
+    #   memory:
+    #     enabled: true
+    #     threshold-percent: 20.0
+    #   restarts:
+    #     enabled: true
+    #     threshold-absolute: 1.0  # Alert if any restarts
+    #   error-rate:
+    #     enabled: false  # Enable and provide query for your setup
+    #     threshold-percent: 50.0
+    #     query: "sum(rate(http_requests_total{status=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m]))"
+    #   latency-p99:
+    #     enabled: false
+    #     threshold-percent: 25.0
+    #     query: "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))"
+  prometheus:
+    enabled: false
+    base-url: "http://localhost:8481"
+    api-path: "/select/0/prometheus/api/v1"
+    timeout-seconds: 30
   cors:
     allowed-origins:
       - "http://localhost:5173"
