@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventOutcome
 import sh.apptrail.controlplane.application.model.agent.DeploymentPhase
+import sh.apptrail.controlplane.application.service.ReleaseFetchService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
@@ -24,6 +25,7 @@ class AgentEventProcessorService(
   private val versionHistoryRepository: VersionHistoryRepository,
   @Value("\${app.ingest.team-label:team}")
   private val teamLabelKey: String,
+  private val releaseFetchService: ReleaseFetchService?,
 ) {
 
   @Transactional
@@ -148,7 +150,7 @@ class AgentEventProcessorService(
       workloadInstance.lastUpdatedAt = now
       workloadInstanceRepository.save(workloadInstance)
 
-      versionHistoryRepository.save(
+      val savedVersionHistory = versionHistoryRepository.save(
         VersionHistoryEntity(
           workloadInstance = workloadInstance,
           previousVersion = previousVersion,
@@ -170,6 +172,9 @@ class AgentEventProcessorService(
           detectedAt = detectedAt,
         )
       )
+
+      // Queue release fetch for the new version
+      releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
     }
   }
 

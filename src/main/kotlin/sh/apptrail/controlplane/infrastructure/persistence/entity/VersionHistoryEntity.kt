@@ -1,6 +1,9 @@
 package sh.apptrail.controlplane.infrastructure.persistence.entity
 
 import jakarta.persistence.*
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
+import sh.apptrail.controlplane.infrastructure.gitprovider.model.ReleaseInfo
 import java.time.Instant
 
 @Entity
@@ -46,4 +49,11 @@ class VersionHistoryEntity(
 
   @Column(name = "updated_at", insertable = false, updatable = false)
   var updatedAt: Instant? = null,
+
+  @Column(name = "release_fetch_status")
+  var releaseFetchStatus: String? = null,
+
+  @Column(name = "release_info", columnDefinition = "jsonb")
+  @JdbcTypeCode(SqlTypes.JSON)
+  var releaseInfo: ReleaseInfo? = null,
 )

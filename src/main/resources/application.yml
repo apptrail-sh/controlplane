@@ -3,14 +3,34 @@ spring:
     name: controlplane
   datasource:
     driver-class-name: org.postgresql.Driver
+  cloud:
+    gcp:
+      pubsub:
+        enabled: ${PUBSUB_ENABLED:false}
 
 app:
+  clusters:
+    # Map clusterId to environment name
+    environments:
+      # Example: cluster-staging-gke-usce1: staging
+      # Example: cluster-prod-gke-usce1: production
   ingest:
     http:
       enabled: true
     pubsub:
-      enabled: false
+      enabled: ${PUBSUB_ENABLED:false}
+      subscription: ${PUBSUB_SUBSCRIPTION:}
     team-label: team
+  gitprovider:
+    github:
+      enabled: ${GITHUB_APP_ENABLED:false}
+      app-id: ${GITHUB_APP_ID:}
+      private-key-path: ${GITHUB_APP_PRIVATE_KEY_PATH:}
+      private-key-base64: ${GITHUB_APP_PRIVATE_KEY_BASE64:}
+      api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+  release-fetch:
+    enabled: true
+    interval-ms: ${RELEASE_FETCH_INTERVAL_MS:30000}
   cors:
     allowed-origins:
       - "http://localhost:5173"

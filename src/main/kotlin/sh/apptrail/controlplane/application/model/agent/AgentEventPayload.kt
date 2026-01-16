@@ -5,7 +5,6 @@ import java.time.Instant
 data class AgentEventPayload(
   val eventId: String,
   val occurredAt: Instant,
-  val environment: String,
   val source: SourceMetadata,
   val workload: WorkloadRef,
   val labels: Map<String, String>,
