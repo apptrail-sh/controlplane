@@ -96,6 +96,8 @@ private fun workloadToResponse(
     kind = workload.kind ?: "",
     name = workload.name ?: "",
     team = workload.team,
+    repositoryUrl = workload.repositoryUrl,
+    description = workload.description,
     createdAt = workload.createdAt,
     updatedAt = workload.updatedAt,
     instances = instances.map { instance ->

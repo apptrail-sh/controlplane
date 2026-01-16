@@ -1,13 +1,18 @@
 package sh.apptrail.controlplane.web.controller
 
+import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import sh.apptrail.controlplane.application.service.WorkloadService
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
+import sh.apptrail.controlplane.web.dto.UpdateWorkloadRequest
 import java.time.Instant
 
 @RestController
@@ -16,6 +21,7 @@ class WorkloadController(
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val versionHistoryRepository: VersionHistoryRepository,
+  private val workloadService: WorkloadService,
 ) {
   @GetMapping
   fun listWorkloads(): List<WorkloadResponse> {
@@ -35,6 +41,8 @@ class WorkloadController(
         kind = workload.kind ?: "",
         name = workload.name ?: "",
         team = workload.team,
+        repositoryUrl = workload.repositoryUrl,
+        description = workload.description,
         createdAt = workload.createdAt,
         updatedAt = workload.updatedAt,
         instances = workloadInstances.map { instance ->
@@ -72,12 +80,58 @@ class WorkloadController(
         kind = workload.kind ?: "",
         name = workload.name ?: "",
         team = workload.team,
+        repositoryUrl = workload.repositoryUrl,
+        description = workload.description,
         createdAt = workload.createdAt,
         updatedAt = workload.updatedAt,
         instances = instances.map { instance ->
           WorkloadInstanceResponse(
             id = instance.id ?: 0,
             workloadId = workload.id ?: 0,
+            clusterId = instance.cluster.id ?: 0,
+            cluster = ClusterResponse(
+              id = instance.cluster.id ?: 0,
+              name = instance.cluster.name,
+            ),
+            namespace = instance.namespace,
+            environment = instance.environment,
+            currentVersion = instance.currentVersion,
+            labels = instance.labels,
+            firstSeenAt = instance.firstSeenAt,
+            lastUpdatedAt = instance.lastUpdatedAt,
+            createdAt = instance.createdAt,
+            updatedAt = instance.updatedAt,
+          )
+        }
+      )
+    )
+  }
+
+  @PatchMapping("/{id}")
+  fun updateWorkload(
+    @PathVariable id: Long,
+    @Valid @RequestBody request: UpdateWorkloadRequest,
+  ): ResponseEntity<WorkloadResponse> {
+    val updatedWorkload = workloadService.updateWorkload(id, request)
+      ?: return ResponseEntity.notFound().build()
+
+    val instances = workloadInstanceRepository.findByWorkloadIn(listOf(updatedWorkload))
+
+    return ResponseEntity.ok(
+      WorkloadResponse(
+        id = updatedWorkload.id ?: 0,
+        group = updatedWorkload.group ?: "",
+        kind = updatedWorkload.kind ?: "",
+        name = updatedWorkload.name ?: "",
+        team = updatedWorkload.team,
+        repositoryUrl = updatedWorkload.repositoryUrl,
+        description = updatedWorkload.description,
+        createdAt = updatedWorkload.createdAt,
+        updatedAt = updatedWorkload.updatedAt,
+        instances = instances.map { instance ->
+          WorkloadInstanceResponse(
+            id = instance.id ?: 0,
+            workloadId = updatedWorkload.id ?: 0,
             clusterId = instance.cluster.id ?: 0,
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
@@ -131,6 +185,8 @@ data class WorkloadResponse(
   val kind: String,
   val name: String,
   val team: String?,
+  val repositoryUrl: String?,
+  val description: String?,
   val createdAt: Instant?,
   val updatedAt: Instant?,
   val instances: List<WorkloadInstanceResponse>,
