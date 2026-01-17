@@ -14,6 +14,11 @@ app:
     environments:
       # Example: cluster-staging-gke-usce1: staging
       # Example: cluster-prod-gke-usce1: production
+    environment-order:
+      - dev
+      - staging
+      - testing
+      - production
   ingest:
     http:
       enabled: true

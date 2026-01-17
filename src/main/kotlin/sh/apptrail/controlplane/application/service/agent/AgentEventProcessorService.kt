@@ -133,6 +133,9 @@ class AgentEventProcessorService(
         }
         if (statusValue != null) {
           latest.deploymentStatus = statusValue
+        } else if (eventPayload.phase == DeploymentPhase.PROGRESSING && latest.deploymentStatus != null) {
+          // Clear stale status when transitioning back to progressing (e.g., pod restart after success)
+          latest.deploymentStatus = null
         }
         latest.detectedAt = detectedAt
         versionHistoryRepository.save(latest)
