@@ -1,7 +1,15 @@
 -- Remove the group field from workloads since partOf now handles workload grouping
 
 -- Drop the unique index that includes group
-DROP INDEX idx_workload_unique;
+DROP INDEX IF EXISTS idx_workload_unique;
+
+-- Delete workload_instances that belong to duplicate workloads (keeping instances from the oldest workload)
+DELETE FROM workload_instances wi
+WHERE wi.workload_id NOT IN (
+    SELECT MIN(w.id)
+    FROM workloads w
+    GROUP BY w.kind, w.name
+);
 
 -- Delete duplicate workloads, keeping the oldest one (lowest id) for each (kind, name) pair
 DELETE FROM workloads w1
