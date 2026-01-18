@@ -96,6 +96,7 @@ private fun workloadToResponse(
     kind = workload.kind ?: "",
     name = workload.name ?: "",
     team = workload.team,
+    partOf = workload.partOf,
     repositoryUrl = workload.repositoryUrl,
     description = workload.description,
     createdAt = workload.createdAt,

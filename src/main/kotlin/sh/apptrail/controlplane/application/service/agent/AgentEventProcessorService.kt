@@ -40,17 +40,37 @@ class AgentEventProcessorService(
     val workloadGroup = workloadGroupFromLabels(eventPayload.labels, eventPayload.workload.name)
     val workloadKind = eventPayload.workload.kind.name
     val workloadName = eventPayload.workload.name
+    val workloadPartOf = eventPayload.labels["app.kubernetes.io/part-of"]
 
-    val workload = workloadRepository.findByGroupAndKindAndName(
+    val workloadTeam = workloadTeamFromLabels(eventPayload.labels)
+
+    val existingWorkload = workloadRepository.findByGroupAndKindAndName(
       group = workloadGroup,
       kind = workloadKind,
       name = workloadName,
-    ) ?: workloadRepository.save(WorkloadEntity().apply {
-      group = workloadGroup
-      kind = workloadKind
-      name = workloadName
-      team = workloadTeamFromLabels(eventPayload.labels)
-    })
+    )
+
+    val workload = if (existingWorkload != null) {
+      // Update mutable properties if they changed
+      val partOfChanged = existingWorkload.partOf != workloadPartOf
+      val teamChanged = existingWorkload.team != workloadTeam
+
+      if (partOfChanged || teamChanged) {
+        existingWorkload.partOf = workloadPartOf
+        existingWorkload.team = workloadTeam
+        workloadRepository.save(existingWorkload)
+      } else {
+        existingWorkload
+      }
+    } else {
+      workloadRepository.save(WorkloadEntity().apply {
+        group = workloadGroup
+        kind = workloadKind
+        name = workloadName
+        team = workloadTeam
+        partOf = workloadPartOf
+      })
+    }
 
     val namespace = eventPayload.workload.namespace
     val workloadInstance = workloadInstanceRepository.findByWorkloadAndClusterAndNamespace(

@@ -15,6 +15,9 @@ class WorkloadEntity : BaseEntity() {
   var name: String? = null
   var team: String? = null
 
+  @field:Column(name = "part_of")
+  var partOf: String? = null
+
   @field:Column(name = "repository_url")
   var repositoryUrl: String? = null
   var description: String? = null
