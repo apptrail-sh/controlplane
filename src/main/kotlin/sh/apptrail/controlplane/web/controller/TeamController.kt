@@ -92,7 +92,6 @@ private fun workloadToResponse(
 ): WorkloadResponse {
   return WorkloadResponse(
     id = workload.id ?: 0,
-    group = workload.group ?: "",
     kind = workload.kind ?: "",
     name = workload.name ?: "",
     team = workload.team,

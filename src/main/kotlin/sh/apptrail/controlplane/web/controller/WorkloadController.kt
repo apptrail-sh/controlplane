@@ -37,7 +37,6 @@ class WorkloadController(
       val workloadInstances = instancesByWorkloadId[workload.id].orEmpty()
       WorkloadResponse(
         id = workload.id ?: 0,
-        group = workload.group ?: "",
         kind = workload.kind ?: "",
         name = workload.name ?: "",
         team = workload.team,
@@ -77,7 +76,6 @@ class WorkloadController(
     return ResponseEntity.ok(
       WorkloadResponse(
         id = workload.id ?: 0,
-        group = workload.group ?: "",
         kind = workload.kind ?: "",
         name = workload.name ?: "",
         team = workload.team,
@@ -122,7 +120,6 @@ class WorkloadController(
     return ResponseEntity.ok(
       WorkloadResponse(
         id = updatedWorkload.id ?: 0,
-        group = updatedWorkload.group ?: "",
         kind = updatedWorkload.kind ?: "",
         name = updatedWorkload.name ?: "",
         team = updatedWorkload.team,
@@ -203,7 +200,6 @@ class WorkloadController(
 
 data class WorkloadResponse(
   val id: Long,
-  val group: String,
   val kind: String,
   val name: String,
   val team: String?,

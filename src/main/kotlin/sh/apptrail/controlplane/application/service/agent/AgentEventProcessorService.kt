@@ -37,15 +37,13 @@ class AgentEventProcessorService(
         name = eventPayload.source.clusterId
       })
 
-    val workloadGroup = workloadGroupFromLabels(eventPayload.labels, eventPayload.workload.name)
     val workloadKind = eventPayload.workload.kind.name
     val workloadName = eventPayload.workload.name
     val workloadPartOf = eventPayload.labels["app.kubernetes.io/part-of"]
 
     val workloadTeam = workloadTeamFromLabels(eventPayload.labels)
 
-    val existingWorkload = workloadRepository.findByGroupAndKindAndName(
-      group = workloadGroup,
+    val existingWorkload = workloadRepository.findByKindAndName(
       kind = workloadKind,
       name = workloadName,
     )
@@ -64,7 +62,6 @@ class AgentEventProcessorService(
       }
     } else {
       workloadRepository.save(WorkloadEntity().apply {
-        group = workloadGroup
         kind = workloadKind
         name = workloadName
         team = workloadTeam
@@ -210,12 +207,6 @@ class AgentEventProcessorService(
     eventPayload.revision?.let {
       require(it.current.isNotBlank()) { "revision.current is required when revision is set" }
     }
-  }
-
-  private fun workloadGroupFromLabels(labels: Map<String, String>, fallback: String): String {
-    return labels["app.kubernetes.io/part-of"]
-      ?: labels["app.kubernetes.io/name"]
-      ?: fallback
   }
 
   private fun workloadTeamFromLabels(labels: Map<String, String>): String? {

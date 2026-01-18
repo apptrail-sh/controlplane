@@ -9,8 +9,6 @@ import sh.apptrail.controlplane.infrastructure.persistence.entity.base.BaseEntit
 @Table(name = "workloads")
 class WorkloadEntity : BaseEntity() {
 
-  @field:Column(name = "\"group\"")
-  var group: String? = null
   var kind: String? = null
   var name: String? = null
   var team: String? = null
