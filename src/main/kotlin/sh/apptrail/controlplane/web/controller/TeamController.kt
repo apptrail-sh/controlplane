@@ -123,6 +123,7 @@ private fun workloadToResponse(
         lastUpdatedAt = instance.lastUpdatedAt,
         createdAt = instance.createdAt,
         updatedAt = instance.updatedAt,
+        alerts = null,
       )
     }
   )

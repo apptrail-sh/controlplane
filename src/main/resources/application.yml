@@ -64,6 +64,15 @@ app:
       - "*"
     allow-credentials: false
     max-age: 3600
+  alerting:
+    prometheus:
+      enabled: ${PROMETHEUS_ENABLED:false}
+      base-url: ${PROMETHEUS_BASE_URL:http://localhost:8481}
+      query-path: ${PROMETHEUS_QUERY_PATH:/select/0:0/prometheus/api/v1/query}
+      timeout-ms: ${PROMETHEUS_TIMEOUT_MS:5000}
+      cache:
+        enabled: true
+        ttl-seconds: 30
 
 server:
   port: 3000

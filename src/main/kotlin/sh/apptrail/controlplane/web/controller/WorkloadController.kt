@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import sh.apptrail.controlplane.application.service.AlertService
+import sh.apptrail.controlplane.application.service.AlertsResult
 import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.InstanceKey
 import sh.apptrail.controlplane.application.service.WorkloadService
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
@@ -24,6 +27,7 @@ class WorkloadController(
   private val versionHistoryRepository: VersionHistoryRepository,
   private val workloadService: WorkloadService,
   private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val alertService: AlertService,
 ) {
   @GetMapping
   fun listWorkloads(): List<WorkloadResponse> {
@@ -34,6 +38,16 @@ class WorkloadController(
 
     val instances = workloadInstanceRepository.findByWorkloadIn(workloads)
     val instancesByWorkloadId = instances.groupBy { it.workload.id }
+
+    val instanceKeys = instances.map { instance ->
+      InstanceKey(
+        workloadName = instance.workload.name ?: "",
+        workloadKind = instance.workload.kind ?: "",
+        clusterName = instance.cluster.name,
+        namespace = instance.namespace,
+      )
+    }
+    val alertsByInstance = alertService.getAlertsForInstances(instanceKeys)
 
     return workloads.map { workload ->
       val workloadInstances = instancesByWorkloadId[workload.id].orEmpty()
@@ -48,6 +62,13 @@ class WorkloadController(
         createdAt = workload.createdAt,
         updatedAt = workload.updatedAt,
         instances = workloadInstances.map { instance ->
+          val instanceKey = InstanceKey(
+            workloadName = workload.name ?: "",
+            workloadKind = workload.kind ?: "",
+            clusterName = instance.cluster.name,
+            namespace = instance.namespace,
+          )
+          val alerts = alertsByInstance[instanceKey]
           WorkloadInstanceResponse(
             id = instance.id ?: 0,
             workloadId = workload.id ?: 0,
@@ -66,6 +87,7 @@ class WorkloadController(
             lastUpdatedAt = instance.lastUpdatedAt,
             createdAt = instance.createdAt,
             updatedAt = instance.updatedAt,
+            alerts = alerts?.toResponse(),
           )
         }
       )
@@ -76,6 +98,16 @@ class WorkloadController(
   fun getWorkload(@PathVariable id: Long): ResponseEntity<WorkloadResponse> {
     val workload = workloadRepository.findById(id).orElse(null) ?: return ResponseEntity.notFound().build()
     val instances = workloadInstanceRepository.findByWorkloadIn(listOf(workload))
+
+    val instanceKeys = instances.map { instance ->
+      InstanceKey(
+        workloadName = workload.name ?: "",
+        workloadKind = workload.kind ?: "",
+        clusterName = instance.cluster.name,
+        namespace = instance.namespace,
+      )
+    }
+    val alertsByInstance = alertService.getAlertsForInstances(instanceKeys)
 
     return ResponseEntity.ok(
       WorkloadResponse(
@@ -89,6 +121,13 @@ class WorkloadController(
         createdAt = workload.createdAt,
         updatedAt = workload.updatedAt,
         instances = instances.map { instance ->
+          val instanceKey = InstanceKey(
+            workloadName = workload.name ?: "",
+            workloadKind = workload.kind ?: "",
+            clusterName = instance.cluster.name,
+            namespace = instance.namespace,
+          )
+          val alerts = alertsByInstance[instanceKey]
           WorkloadInstanceResponse(
             id = instance.id ?: 0,
             workloadId = workload.id ?: 0,
@@ -107,6 +146,7 @@ class WorkloadController(
             lastUpdatedAt = instance.lastUpdatedAt,
             createdAt = instance.createdAt,
             updatedAt = instance.updatedAt,
+            alerts = alerts?.toResponse(),
           )
         }
       )
@@ -123,6 +163,16 @@ class WorkloadController(
 
     val instances = workloadInstanceRepository.findByWorkloadIn(listOf(updatedWorkload))
 
+    val instanceKeys = instances.map { instance ->
+      InstanceKey(
+        workloadName = updatedWorkload.name ?: "",
+        workloadKind = updatedWorkload.kind ?: "",
+        clusterName = instance.cluster.name,
+        namespace = instance.namespace,
+      )
+    }
+    val alertsByInstance = alertService.getAlertsForInstances(instanceKeys)
+
     return ResponseEntity.ok(
       WorkloadResponse(
         id = updatedWorkload.id ?: 0,
@@ -135,6 +185,13 @@ class WorkloadController(
         createdAt = updatedWorkload.createdAt,
         updatedAt = updatedWorkload.updatedAt,
         instances = instances.map { instance ->
+          val instanceKey = InstanceKey(
+            workloadName = updatedWorkload.name ?: "",
+            workloadKind = updatedWorkload.kind ?: "",
+            clusterName = instance.cluster.name,
+            namespace = instance.namespace,
+          )
+          val alerts = alertsByInstance[instanceKey]
           WorkloadInstanceResponse(
             id = instance.id ?: 0,
             workloadId = updatedWorkload.id ?: 0,
@@ -153,6 +210,7 @@ class WorkloadController(
             lastUpdatedAt = instance.lastUpdatedAt,
             createdAt = instance.createdAt,
             updatedAt = instance.updatedAt,
+            alerts = alerts?.toResponse(),
           )
         }
       )
@@ -233,7 +291,36 @@ data class WorkloadInstanceResponse(
   val lastUpdatedAt: Instant?,
   val createdAt: Instant?,
   val updatedAt: Instant?,
+  val alerts: AlertsResponse?,
 )
+
+data class AlertsResponse(
+  val count: Int,
+  val hasCritical: Boolean,
+  val hasWarning: Boolean,
+  val details: List<AlertDetailResponse>,
+)
+
+data class AlertDetailResponse(
+  val name: String,
+  val severity: String?,
+  val activeForSeconds: Long?,
+)
+
+fun AlertsResult.toResponse(): AlertsResponse {
+  return AlertsResponse(
+    count = count,
+    hasCritical = hasCritical,
+    hasWarning = hasWarning,
+    details = details.map { detail ->
+      AlertDetailResponse(
+        name = detail.name,
+        severity = detail.severity,
+        activeForSeconds = detail.activeForSeconds,
+      )
+    },
+  )
+}
 
 data class ClusterResponse(
   val id: Long,
