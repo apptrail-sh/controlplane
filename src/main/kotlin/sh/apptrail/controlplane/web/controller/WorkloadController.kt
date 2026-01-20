@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
 import sh.apptrail.controlplane.application.service.WorkloadService
-import sh.apptrail.controlplane.infrastructure.config.ClusterEnvironmentProperties
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
@@ -23,7 +23,7 @@ class WorkloadController(
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val versionHistoryRepository: VersionHistoryRepository,
   private val workloadService: WorkloadService,
-  private val clusterEnvironmentProperties: ClusterEnvironmentProperties,
+  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
 ) {
   @GetMapping
   fun listWorkloads(): List<WorkloadResponse> {
@@ -55,7 +55,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentProperties.aliases[instance.cluster.name],
+              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,
@@ -96,7 +96,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentProperties.aliases[instance.cluster.name],
+              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,
@@ -142,7 +142,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentProperties.aliases[instance.cluster.name],
+              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,

@@ -15,31 +15,34 @@ class ClusterEnvironmentResolver(
   private val properties: ClusterEnvironmentProperties,
 ) {
   fun resolveEnvironment(clusterId: String): String {
-    return properties.environments[clusterId] ?: "unknown"
+    return properties.definitions[clusterId]?.environment ?: "unknown"
   }
 
   /**
    * Resolves the shard for a given cluster and namespace.
    * Resolution order:
-   * 1. First check for cluster.namespace specific mapping
-   * 2. Fall back to cluster-level mapping
+   * 1. First check for namespace-level shard override
+   * 2. Fall back to cluster-level shard
    * @return ShardInfo if a shard is configured, null otherwise
    */
   fun resolveShard(clusterId: String, namespace: String): ShardInfo? {
-    // Try cluster.namespace-level mapping first
-    val namespaceKey = "$clusterId.$namespace"
-    val namespaceConfig = properties.shards[namespaceKey]
-    if (namespaceConfig != null) {
-      return ShardInfo(name = namespaceConfig.name, order = namespaceConfig.order)
+    val definition = properties.definitions[clusterId] ?: return null
+
+    // Check namespace-level override first
+    definition.namespaces[namespace]?.shard?.let {
+      return ShardInfo(name = it.name, order = it.order)
     }
 
-    // Fall back to cluster-level mapping
-    val clusterConfig = properties.shards[clusterId]
-    if (clusterConfig != null) {
-      return ShardInfo(name = clusterConfig.name, order = clusterConfig.order)
-    }
+    // Fall back to cluster-level shard
+    return definition.shard?.let { ShardInfo(name = it.name, order = it.order) }
+  }
 
-    return null
+  /**
+   * Resolves the alias for a given cluster.
+   * @return the alias if configured, null otherwise
+   */
+  fun resolveAlias(clusterId: String): String? {
+    return properties.definitions[clusterId]?.alias
   }
 
   /**
@@ -47,7 +50,10 @@ class ClusterEnvironmentResolver(
    * @return the shard order, or null if shard is not configured
    */
   fun getShardOrder(shardName: String): Int? {
-    return properties.shards.values.find { it.name == shardName }?.order
+    return properties.definitions.values
+      .mapNotNull { it.shard }
+      .find { it.name == shardName }
+      ?.order
   }
 
   /**
@@ -57,20 +63,14 @@ class ClusterEnvironmentResolver(
   fun getShardsByEnvironment(): Map<String, List<ShardInfo>> {
     val result = mutableMapOf<String, MutableList<ShardInfo>>()
 
-    // Build reverse mapping: cluster -> environment
-    val clusterToEnv = properties.environments
-
-    // For each shard config, find its environment
-    for ((key, config) in properties.shards) {
-      // Key can be either "clusterId" or "clusterId.namespace"
-      val clusterId = key.split(".").first()
-      val environment = clusterToEnv[clusterId] ?: continue
-
-      val shardInfo = ShardInfo(name = config.name, order = config.order)
-      result.getOrPut(environment) { mutableListOf() }.add(shardInfo)
+    for ((_, definition) in properties.definitions) {
+      val environment = definition.environment
+      definition.shard?.let { shard ->
+        val shardInfo = ShardInfo(name = shard.name, order = shard.order)
+        result.getOrPut(environment) { mutableListOf() }.add(shardInfo)
+      }
     }
 
-    // Sort shards by order and deduplicate by name
     return result.mapValues { (_, shards) ->
       shards.distinctBy { it.name }.sortedBy { it.order }
     }
@@ -81,9 +81,25 @@ class ClusterEnvironmentResolver(
    * @return List of ShardInfo sorted by order
    */
   fun getAllShards(): List<ShardInfo> {
-    return properties.shards.values
+    return properties.definitions.values
+      .mapNotNull { it.shard }
       .map { ShardInfo(name = it.name, order = it.order) }
       .distinctBy { it.name }
       .sortedBy { it.order }
   }
+
+  /**
+   * Gets all configured environments with their order.
+   * @return List of environment names sorted by order
+   */
+  fun getEnvironments(): List<EnvironmentInfo> {
+    return properties.environments
+      .sortedBy { it.order }
+      .map { EnvironmentInfo(name = it.name, order = it.order) }
+  }
 }
+
+data class EnvironmentInfo(
+  val name: String,
+  val order: Int,
+)

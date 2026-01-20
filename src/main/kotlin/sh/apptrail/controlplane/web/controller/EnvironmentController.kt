@@ -4,22 +4,21 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
-import sh.apptrail.controlplane.infrastructure.config.ClusterEnvironmentProperties
 
 @RestController
 @RequestMapping("/api/v1/environments")
 class EnvironmentController(
-  private val properties: ClusterEnvironmentProperties,
   private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
 ) {
   @GetMapping
   fun getEnvironments(): EnvironmentsResponse {
     val shardsByEnv = clusterEnvironmentResolver.getShardsByEnvironment()
+    val environments = clusterEnvironmentResolver.getEnvironments()
 
     return EnvironmentsResponse(
-      environments = properties.environmentOrder.mapIndexed { index, name ->
-        val envShards = shardsByEnv[name]?.map { ShardInfoResponse(name = it.name, order = it.order) }
-        EnvironmentInfo(name = name, order = index, shards = envShards)
+      environments = environments.map { env ->
+        val envShards = shardsByEnv[env.name]?.map { ShardInfoResponse(name = it.name, order = it.order) }
+        EnvironmentInfo(name = env.name, order = env.order, shards = envShards)
       }
     )
   }
