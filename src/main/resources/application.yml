@@ -14,6 +14,10 @@ app:
     environments:
       # Example: cluster-staging-gke-usce1: staging
       # Example: cluster-prod-gke-usce1: production
+    # Map clusterId to display alias (for UI presentation only)
+    aliases:
+      # Example: cluster-staging-gke-usce1: stg.01
+      # Example: cluster-prod-gke-usce1: prd.01
     environment-order:
       - dev
       - staging

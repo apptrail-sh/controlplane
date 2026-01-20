@@ -7,6 +7,7 @@ data class ClusterEnvironmentProperties(
   val environments: Map<String, String> = emptyMap(),
   val environmentOrder: List<String> = listOf("dev", "staging", "production"),
   val shards: Map<String, ShardConfig> = emptyMap(),
+  val aliases: Map<String, String> = emptyMap(),
 )
 
 data class ShardConfig(
