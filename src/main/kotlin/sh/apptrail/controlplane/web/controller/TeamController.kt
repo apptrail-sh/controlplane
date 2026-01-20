@@ -111,6 +111,7 @@ private fun workloadToResponse(
         ),
         namespace = instance.namespace,
         environment = instance.environment,
+        shard = instance.shard,
         currentVersion = instance.currentVersion,
         labels = instance.labels,
         firstSeenAt = instance.firstSeenAt,

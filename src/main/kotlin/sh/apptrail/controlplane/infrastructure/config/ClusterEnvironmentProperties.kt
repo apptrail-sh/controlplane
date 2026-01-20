@@ -6,4 +6,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class ClusterEnvironmentProperties(
   val environments: Map<String, String> = emptyMap(),
   val environmentOrder: List<String> = listOf("dev", "staging", "production"),
+  val shards: Map<String, ShardConfig> = emptyMap(),
+)
+
+data class ShardConfig(
+  val name: String,
+  val order: Int,
 )

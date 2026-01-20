@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventOutcome
 import sh.apptrail.controlplane.application.model.agent.DeploymentPhase
+import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
 import sh.apptrail.controlplane.application.service.ReleaseFetchService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity
@@ -26,6 +27,7 @@ class AgentEventProcessorService(
   @Value("\${app.ingest.team-label:team}")
   private val teamLabelKey: String,
   private val releaseFetchService: ReleaseFetchService?,
+  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
 ) {
 
   @Transactional
@@ -70,6 +72,9 @@ class AgentEventProcessorService(
     }
 
     val namespace = eventPayload.workload.namespace
+    val clusterId = eventPayload.source.clusterId
+    val shardInfo = clusterEnvironmentResolver.resolveShard(clusterId, namespace)
+
     val workloadInstance = workloadInstanceRepository.findByWorkloadAndClusterAndNamespace(
       workload = workload,
       cluster = cluster,
@@ -79,11 +84,17 @@ class AgentEventProcessorService(
       this.cluster = cluster
       this.namespace = namespace
       this.environment = eventPayload.environment
+      this.shard = shardInfo?.name
     }
 
     // Update environment if it changed (e.g., from "unknown" to actual value)
     if (workloadInstance.environment != eventPayload.environment) {
       workloadInstance.environment = eventPayload.environment
+    }
+
+    // Update shard if it changed (e.g., from null to configured value or if config changed)
+    if (workloadInstance.shard != shardInfo?.name) {
+      workloadInstance.shard = shardInfo?.name
     }
 
     val now = Instant.now()

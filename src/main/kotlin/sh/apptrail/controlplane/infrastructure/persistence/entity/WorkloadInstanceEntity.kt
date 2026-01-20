@@ -24,6 +24,9 @@ class WorkloadInstanceEntity : BaseEntity() {
   @field:Column(nullable = false)
   var environment: String = ""
 
+  @field:Column
+  var shard: String? = null
+
   @field:Column(name = "current_version")
   var currentVersion: String? = null
 

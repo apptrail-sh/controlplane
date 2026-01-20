@@ -19,6 +19,22 @@ app:
       - staging
       - testing
       - production
+    # Shard mapping - supports cluster-level and cluster.namespace-level
+    # Example configuration:
+    # shards:
+    #   # Cluster-level: applies to all namespaces in this cluster
+    #   cluster1-gke-usce1:
+    #     name: canary
+    #     order: 0
+    #   cluster2-gke-usce1:
+    #     name: main
+    #     order: 1
+    #   # Namespace-level: overrides cluster-level for specific namespace
+    #   # Format: "clusterName.namespace"
+    #   cluster2-gke-usce1.special-ns:
+    #     name: shard02
+    #     order: 2
+    shards: {}
   ingest:
     http:
       enabled: true
