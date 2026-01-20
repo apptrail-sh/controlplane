@@ -81,6 +81,11 @@ class AgentEventProcessorService(
       this.environment = eventPayload.environment
     }
 
+    // Update environment if it changed (e.g., from "unknown" to actual value)
+    if (workloadInstance.environment != eventPayload.environment) {
+      workloadInstance.environment = eventPayload.environment
+    }
+
     val now = Instant.now()
     val isNewInstance = workloadInstance.firstSeenAt == null
     if (isNewInstance) {
