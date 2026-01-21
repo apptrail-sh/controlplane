@@ -69,28 +69,62 @@ class MetricsCalculator {
 
   /**
    * Calculate MTTR (Mean Time To Recovery) metrics.
-   * Looks at failed deployments and subsequent restores (rollbacks).
+   * Tracks failure→recovery sequences per workload instance.
+   * A recovery only counts when a failure occurred for that workload and was subsequently resolved.
    */
   fun calculateMTTR(history: List<VersionHistoryEntity>): MTTRMetricsResponse {
-    val failures = history.filter { isFailed(it) }
-    val restores = history.filter { isRollback(it) }
+    // Group by workload instance to track sequences per workload
+    val byWorkload = history.groupBy { it.workloadInstance.id }
 
-    val mttrSeconds = if (failures.isNotEmpty() && restores.isNotEmpty()) {
-      restores.mapNotNull { getDeploymentDuration(it) }.average()
+    var totalFailures = 0
+    var totalRecoveries = 0
+    val recoveryDurations = mutableListOf<Long>()
+
+    for ((_, workloadHistory) in byWorkload) {
+      // Sort by time to track sequences
+      val sorted = workloadHistory.sortedBy { it.detectedAt }
+      var pendingFailure: VersionHistoryEntity? = null
+
+      for (entry in sorted) {
+        when {
+          isFailed(entry) -> {
+            // New failure for this workload (only count if no pending failure)
+            if (pendingFailure == null) {
+              totalFailures++
+            }
+            pendingFailure = entry
+          }
+          pendingFailure != null && entry.deploymentPhase == "success" -> {
+            // Recovery from failure for this workload
+            totalRecoveries++
+            // MTTR = time from failure detection to recovery completion
+            val recoveryTime = Duration.between(
+              pendingFailure.detectedAt,
+              entry.deploymentCompletedAt ?: entry.detectedAt
+            ).seconds
+            recoveryDurations.add(recoveryTime)
+            pendingFailure = null
+          }
+        }
+      }
+    }
+
+    val mttrSeconds = if (recoveryDurations.isNotEmpty()) {
+      recoveryDurations.average()
     } else {
       0.0
     }
 
-    val sorted = restores.mapNotNull { getDeploymentDuration(it) }.sorted()
-    val median = if (sorted.isNotEmpty()) calculateMedian(sorted) else 0
-    val p95 = if (sorted.isNotEmpty()) calculatePercentile(sorted, 0.95) else 0
+    val sortedDurations = recoveryDurations.map { it.toInt() }.sorted()
+    val median = if (sortedDurations.isNotEmpty()) calculateMedian(sortedDurations) else 0
+    val p95 = if (sortedDurations.isNotEmpty()) calculatePercentile(sortedDurations, 0.95) else 0
 
     return MTTRMetricsResponse(
       averageSeconds = mttrSeconds,
       medianSeconds = median,
       p95Seconds = p95,
-      totalFailures = failures.size,
-      totalRestores = restores.size
+      totalFailures = totalFailures,
+      totalRestores = totalRecoveries
     )
   }
 

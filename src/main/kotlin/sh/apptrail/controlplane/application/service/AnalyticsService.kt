@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -164,37 +165,76 @@ class AnalyticsService(
     )
   }
 
+  /**
+   * Calculate MTTR (Mean Time To Recovery) metrics.
+   * Tracks failure→recovery sequences per workload instance.
+   * A recovery only counts when a failure occurred for that workload and was subsequently resolved.
+   */
   private fun calculateMTTR(
     history: List<sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity>
   ): MTTRMetricsResponse {
-    val failures = history.filter { it.deploymentPhase == "failed" }
-    val restores = history.filter {
-      it.previousVersion != null && it.currentVersion < (it.previousVersion ?: "")
+    // Group by workload instance to track sequences per workload
+    val byWorkload = history.groupBy { it.workloadInstance.id }
+
+    var totalFailures = 0
+    var totalRecoveries = 0
+    val recoveryDurations = mutableListOf<Long>()
+
+    for ((_, workloadHistory) in byWorkload) {
+      // Sort by time to track sequences
+      val sorted = workloadHistory.sortedBy { it.detectedAt }
+      var pendingFailure: sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity? = null
+
+      for (entry in sorted) {
+        when {
+          entry.deploymentPhase == "failed" -> {
+            // New failure for this workload (only count if no pending failure)
+            if (pendingFailure == null) {
+              totalFailures++
+            }
+            pendingFailure = entry
+          }
+          pendingFailure != null && entry.deploymentPhase == "success" -> {
+            // Recovery from failure for this workload
+            totalRecoveries++
+            // MTTR = time from failure detection to recovery completion
+            val recoveryTime = Duration.between(
+              pendingFailure.detectedAt,
+              entry.deploymentCompletedAt ?: entry.detectedAt
+            ).seconds
+            recoveryDurations.add(recoveryTime)
+            pendingFailure = null
+          }
+        }
+      }
     }
 
-    val mttrSeconds = if (failures.isNotEmpty() && restores.isNotEmpty()) {
-      val avgRestoreTime = restores.mapNotNull { getDeploymentDuration(it) }.average()
-      avgRestoreTime
+    val mttrSeconds = if (recoveryDurations.isNotEmpty()) {
+      recoveryDurations.average()
     } else {
       0.0
     }
 
-    val sorted = restores.mapNotNull { getDeploymentDuration(it) }.sorted()
-    val median = if (sorted.size % 2 == 0 && sorted.isNotEmpty()) {
-      (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2
-    } else if (sorted.isNotEmpty()) {
-      sorted[sorted.size / 2]
+    val sortedDurations = recoveryDurations.map { it.toInt() }.sorted()
+    val median = if (sortedDurations.size % 2 == 0 && sortedDurations.isNotEmpty()) {
+      (sortedDurations[sortedDurations.size / 2 - 1] + sortedDurations[sortedDurations.size / 2]) / 2
+    } else if (sortedDurations.isNotEmpty()) {
+      sortedDurations[sortedDurations.size / 2]
     } else {
       0
     }
-    val p95 = if (sorted.isNotEmpty()) sorted[(sorted.size * 0.95).toInt().coerceAtMost(sorted.size - 1)] else 0
+    val p95 = if (sortedDurations.isNotEmpty()) {
+      sortedDurations[(sortedDurations.size * 0.95).toInt().coerceAtMost(sortedDurations.size - 1)]
+    } else {
+      0
+    }
 
     return MTTRMetricsResponse(
       averageSeconds = mttrSeconds,
       medianSeconds = median,
       p95Seconds = p95,
-      totalFailures = failures.size,
-      totalRestores = restores.size
+      totalFailures = totalFailures,
+      totalRestores = totalRecoveries
     )
   }
 
