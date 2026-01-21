@@ -3,6 +3,7 @@ package sh.apptrail.controlplane.application.service
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.infrastructure.config.ClusterEnvironmentProperties
+import sh.apptrail.controlplane.infrastructure.config.QuickLinkType
 import sh.apptrail.controlplane.infrastructure.config.QuickLinksProperties
 
 data class QuickLinkContext(
@@ -21,7 +22,7 @@ data class InterpolatedQuickLink(
   val name: String,
   val description: String?,
   val url: String,
-  val linkType: String,
+  val linkType: QuickLinkType,
   val icon: String?,
 )
 
@@ -29,7 +30,7 @@ data class QuickLinkTemplate(
   val name: String,
   val description: String?,
   val urlTemplate: String,
-  val linkType: String,
+  val linkType: QuickLinkType,
   val icon: String?,
 )
 
