@@ -79,32 +79,47 @@ class QuickLinkService(
     context: QuickLinkContext,
     environmentMetadata: Map<String, String>,
   ): String {
-    var result = template
+    // Build variable map for lookups
+    val variables = mapOf(
+      "cluster.name" to context.clusterName,
+      "cluster.id" to (context.clusterId?.toString() ?: ""),
+      "instance.namespace" to context.namespace,
+      "instance.environment" to context.environment,
+      "instance.shard" to (context.shard ?: ""),
+      "workload.name" to context.workloadName,
+      "workload.kind" to context.workloadKind,
+      "workload.team" to (context.team ?: ""),
+      "version" to (context.version ?: ""),
+    )
 
-    // Cluster variables
-    result = result.replace("{{cluster.name}}", context.clusterName)
-    result = result.replace("{{cluster.id}}", context.clusterId?.toString() ?: "")
+    // Match {{variable}} or {{variable | function}}
+    val pattern = Regex("""\{\{([^|}]+)(?:\|([^}]+))?\}\}""")
 
-    // Instance variables
-    result = result.replace("{{instance.namespace}}", context.namespace)
-    result = result.replace("{{instance.environment}}", context.environment)
-    result = result.replace("{{instance.shard}}", context.shard ?: "")
+    return pattern.replace(template) { matchResult ->
+      val variableName = matchResult.groupValues[1].trim()
+      val functionName = matchResult.groupValues[2].takeIf { it.isNotEmpty() }
 
-    // Workload variables
-    result = result.replace("{{workload.name}}", context.workloadName)
-    result = result.replace("{{workload.kind}}", context.workloadKind)
-    result = result.replace("{{workload.team}}", context.team ?: "")
+      val value = when {
+        variableName.startsWith("environment.metadata.") -> {
+          val key = variableName.removePrefix("environment.metadata.")
+          environmentMetadata[key] ?: ""
+        }
+        else -> variables[variableName] ?: ""
+      }
 
-    // Version
-    result = result.replace("{{version}}", context.version ?: "")
-
-    // Environment metadata (e.g., {{environment.metadata.gcp-project}})
-    val metadataPattern = Regex("""\{\{environment\.metadata\.([^}]+)\}\}""")
-    result = metadataPattern.replace(result) { matchResult ->
-      val key = matchResult.groupValues[1]
-      environmentMetadata[key] ?: ""
+      if (functionName != null) {
+        applyFunction(value, functionName)
+      } else {
+        value
+      }
     }
+  }
 
-    return result
+  private fun applyFunction(value: String, function: String): String {
+    return when (function.trim().lowercase()) {
+      "lowercase" -> value.lowercase()
+      "uppercase" -> value.uppercase()
+      else -> value // Unknown function, return unchanged
+    }
   }
 }

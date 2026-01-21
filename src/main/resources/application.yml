@@ -98,6 +98,6 @@ apptrail:
         icon: grafana
       - name: "kubectl describe"
         description: "Describe the workload pods"
-        urlTemplate: "kubectl --context=$(kubectl config get-contexts -o name | grep -i '{{cluster.name}}' | head -1) -n {{instance.namespace}} describe $(echo {{workload.kind}} | tr '[:upper:]' '[:lower:]')/{{workload.name}}"
+        urlTemplate: "kubectl --context=$(kubectl config get-contexts -o name | grep -i '{{cluster.name}}' | head -1) -n {{instance.namespace}} describe {{workload.kind | lowercase}}/{{workload.name}}"
         linkType: command
         icon: terminal
