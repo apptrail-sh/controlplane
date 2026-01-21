@@ -82,3 +82,22 @@ app:
 
 server:
   port: 3000
+
+apptrail:
+  quick-links:
+    links:
+      - name: "GCP Logs"
+        description: "View logs in Google Cloud Console"
+        urlTemplate: "https://console.cloud.google.com/logs/query;query=resource.labels.cluster_name%3D%22{{cluster.name}}%22%0Aresource.labels.namespace_name%3D%22{{instance.namespace}}%22;project={{environment.metadata.gcp-project}}"
+        linkType: url
+        icon: gcp
+      - name: "Grafana Dashboard"
+        description: "View metrics in Grafana"
+        urlTemplate: "https://grafana.example.com/d/k8s?var-namespace={{instance.namespace}}&var-workload={{workload.name}}"
+        linkType: url
+        icon: grafana
+      - name: "kubectl describe"
+        description: "Describe the workload pods"
+        urlTemplate: "kubectl --context={{cluster.name}} -n {{instance.namespace}} describe deployment/{{workload.name}}"
+        linkType: command
+        icon: terminal

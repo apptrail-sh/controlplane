@@ -27,4 +27,5 @@ data class ShardConfig(
 data class EnvironmentDefinition(
   val name: String,
   val order: Int,
+  val metadata: Map<String, String> = emptyMap(),
 )
