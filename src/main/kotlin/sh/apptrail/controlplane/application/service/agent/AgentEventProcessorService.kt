@@ -92,9 +92,9 @@ class AgentEventProcessorService(
       workloadInstance.environment = eventPayload.environment
     }
 
-    // Update shard if it changed (e.g., from null to configured value or if config changed)
-    if (workloadInstance.shard != shardInfo?.name) {
-      workloadInstance.shard = shardInfo?.name
+    // Only update shard if a valid config is found - don't reset to null if no config matches
+    if (shardInfo != null && workloadInstance.shard != shardInfo.name) {
+      workloadInstance.shard = shardInfo.name
     }
 
     val now = Instant.now()
