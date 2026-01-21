@@ -7,17 +7,23 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.AlertService
 import sh.apptrail.controlplane.application.service.AlertsResult
 import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
 import sh.apptrail.controlplane.application.service.InstanceKey
+import sh.apptrail.controlplane.application.service.MetricsFilters
+import sh.apptrail.controlplane.application.service.WorkloadMetricsResponse
+import sh.apptrail.controlplane.application.service.WorkloadMetricsService
 import sh.apptrail.controlplane.application.service.WorkloadService
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import sh.apptrail.controlplane.web.dto.UpdateWorkloadRequest
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @RestController
 @RequestMapping("/api/v1/workloads")
@@ -28,6 +34,7 @@ class WorkloadController(
   private val workloadService: WorkloadService,
   private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
   private val alertService: AlertService,
+  private val workloadMetricsService: WorkloadMetricsService,
 ) {
   @GetMapping
   fun listWorkloads(): List<WorkloadResponse> {
@@ -261,6 +268,42 @@ class WorkloadController(
         )
       }
     )
+  }
+
+  @GetMapping("/{id}/metrics")
+  fun getWorkloadMetrics(
+    @PathVariable id: Long,
+    @RequestParam(required = false) startDate: String?,
+    @RequestParam(required = false) endDate: String?,
+    @RequestParam(required = false) environment: String?,
+    @RequestParam(required = false) clusterId: Long?,
+    @RequestParam(required = false, defaultValue = "day") granularity: String
+  ): ResponseEntity<WorkloadMetricsResponse> {
+    val parsedStartDate = startDate?.let { parseDate(it) }
+      ?: LocalDate.now().minusDays(30).atStartOfDay().toInstant(ZoneOffset.UTC)
+    val parsedEndDate = endDate?.let { parseDate(it) }
+      ?: Instant.now()
+
+    val filters = MetricsFilters(
+      startDate = parsedStartDate,
+      endDate = parsedEndDate,
+      environment = environment,
+      clusterId = clusterId,
+      granularity = granularity
+    )
+
+    val metrics = workloadMetricsService.getWorkloadMetrics(id, filters)
+      ?: return ResponseEntity.notFound().build()
+
+    return ResponseEntity.ok(metrics)
+  }
+
+  private fun parseDate(dateStr: String): Instant {
+    return if (dateStr.contains("T")) {
+      Instant.parse(dateStr)
+    } else {
+      LocalDate.parse(dateStr).atStartOfDay().toInstant(ZoneOffset.UTC)
+    }
   }
 }
 

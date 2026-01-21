@@ -13,4 +13,8 @@ interface WorkloadInstanceRepository : JpaRepository<WorkloadInstanceEntity, Lon
   ): WorkloadInstanceEntity?
 
   fun findByWorkloadIn(workloads: List<WorkloadEntity>): List<WorkloadInstanceEntity>
+
+  fun findByWorkload(workload: WorkloadEntity): List<WorkloadInstanceEntity>
+
+  fun findByWorkloadId(workloadId: Long): List<WorkloadInstanceEntity>
 }

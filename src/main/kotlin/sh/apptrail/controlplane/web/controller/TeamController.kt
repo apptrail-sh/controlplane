@@ -4,13 +4,19 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.MetricsFilters
+import sh.apptrail.controlplane.application.service.TeamScorecardResponse
+import sh.apptrail.controlplane.application.service.TeamScorecardService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadInstanceEntity
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @RestController
 @RequestMapping("/api/v1/teams")
@@ -18,6 +24,7 @@ class TeamController(
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val teamScorecardService: TeamScorecardService,
 ) {
   @GetMapping
   fun listTeams(): List<TeamResponse> {
@@ -73,6 +80,42 @@ class TeamController(
         workloads = workloadResponses,
       )
     )
+  }
+
+  @GetMapping("/{name}/scorecard")
+  fun getTeamScorecard(
+    @PathVariable name: String,
+    @RequestParam(required = false) startDate: String?,
+    @RequestParam(required = false) endDate: String?,
+    @RequestParam(required = false) environment: String?,
+    @RequestParam(required = false) clusterId: Long?,
+    @RequestParam(required = false, defaultValue = "day") granularity: String
+  ): ResponseEntity<TeamScorecardResponse> {
+    val parsedStartDate = startDate?.let { parseDate(it) }
+      ?: LocalDate.now().minusDays(30).atStartOfDay().toInstant(ZoneOffset.UTC)
+    val parsedEndDate = endDate?.let { parseDate(it) }
+      ?: Instant.now()
+
+    val filters = MetricsFilters(
+      startDate = parsedStartDate,
+      endDate = parsedEndDate,
+      environment = environment,
+      clusterId = clusterId,
+      granularity = granularity
+    )
+
+    val scorecard = teamScorecardService.getTeamScorecard(name, filters)
+      ?: return ResponseEntity.notFound().build()
+
+    return ResponseEntity.ok(scorecard)
+  }
+
+  private fun parseDate(dateStr: String): Instant {
+    return if (dateStr.contains("T")) {
+      Instant.parse(dateStr)
+    } else {
+      LocalDate.parse(dateStr).atStartOfDay().toInstant(ZoneOffset.UTC)
+    }
   }
 }
 
