@@ -6,7 +6,10 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import sh.apptrail.controlplane.application.service.AlertService
+import sh.apptrail.controlplane.application.service.AlertsResult
 import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.InstanceKey
 import sh.apptrail.controlplane.application.service.MetricsFilters
 import sh.apptrail.controlplane.application.service.TeamScorecardResponse
 import sh.apptrail.controlplane.application.service.TeamScorecardService
@@ -25,6 +28,7 @@ class TeamController(
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
   private val teamScorecardService: TeamScorecardService,
+  private val alertService: AlertService,
 ) {
   @GetMapping
   fun listTeams(): List<TeamResponse> {
@@ -67,8 +71,18 @@ class TeamController(
     val instances = workloadInstanceRepository.findByWorkloadIn(workloads)
     val instancesByWorkloadId = instances.groupBy { it.workload.id }
 
+    val instanceKeys = instances.map { instance ->
+      InstanceKey(
+        workloadName = instance.workload.name ?: "",
+        workloadKind = instance.workload.kind ?: "",
+        clusterName = instance.cluster.name,
+        namespace = instance.namespace,
+      )
+    }
+    val alertsByInstance = alertService.getAlertsForInstances(instanceKeys)
+
     val workloadResponses = workloads.map { workload ->
-      workloadToResponse(workload, instancesByWorkloadId[workload.id].orEmpty(), clusterEnvironmentResolver)
+      workloadToResponse(workload, instancesByWorkloadId[workload.id].orEmpty(), clusterEnvironmentResolver, alertsByInstance)
     }
 
     val latestActivity = instances.mapNotNull { it.lastUpdatedAt }.maxOrNull()
@@ -136,6 +150,7 @@ private fun workloadToResponse(
   workload: WorkloadEntity,
   instances: List<WorkloadInstanceEntity>,
   clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  alertsByInstance: Map<InstanceKey, AlertsResult>,
 ): WorkloadResponse {
   return WorkloadResponse(
     id = workload.id ?: 0,
@@ -148,6 +163,13 @@ private fun workloadToResponse(
     createdAt = workload.createdAt,
     updatedAt = workload.updatedAt,
     instances = instances.map { instance ->
+      val instanceKey = InstanceKey(
+        workloadName = workload.name ?: "",
+        workloadKind = workload.kind ?: "",
+        clusterName = instance.cluster.name,
+        namespace = instance.namespace,
+      )
+      val alerts = alertsByInstance[instanceKey]
       WorkloadInstanceResponse(
         id = instance.id ?: 0,
         workloadId = workload.id ?: 0,
@@ -166,7 +188,7 @@ private fun workloadToResponse(
         lastUpdatedAt = instance.lastUpdatedAt,
         createdAt = instance.createdAt,
         updatedAt = instance.updatedAt,
-        alerts = null,
+        alerts = alerts?.toResponse(),
       )
     }
   )
