@@ -94,7 +94,7 @@ class MetricsCalculator {
             }
             pendingFailure = entry
           }
-          pendingFailure != null && entry.deploymentPhase == "success" -> {
+          pendingFailure != null && entry.deploymentPhase == "completed" -> {
             // Recovery from failure for this workload
             totalRecoveries++
             // MTTR = time from failure detection to recovery completion

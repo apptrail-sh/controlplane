@@ -194,7 +194,7 @@ class AnalyticsService(
             }
             pendingFailure = entry
           }
-          pendingFailure != null && entry.deploymentPhase == "success" -> {
+          pendingFailure != null && entry.deploymentPhase == "completed" -> {
             // Recovery from failure for this workload
             totalRecoveries++
             // MTTR = time from failure detection to recovery completion
@@ -379,7 +379,7 @@ class AnalyticsService(
         }
       }
       .map { (period, entries) ->
-        val success = entries.count { it.deploymentPhase == "success" || it.deploymentPhase == "completed" }
+        val success = entries.count { it.deploymentPhase == "completed" }
         val failed = entries.count { it.deploymentPhase == "failed" }
         val durations = entries.mapNotNull { getDeploymentDuration(it) }
 

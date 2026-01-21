@@ -126,9 +126,7 @@ class WorkloadMetricsService(
           else -> periodStart.plus(1, ChronoUnit.DAYS)
         }
 
-        val successCount = entries.count {
-          it.deploymentPhase == "success" || it.deploymentPhase == "completed"
-        }
+        val successCount = entries.count { it.deploymentPhase == "completed" }
         val failureCount = entries.count { metricsCalculator.isFailed(it) }
         val rollbackCount = entries.count { metricsCalculator.isRollback(it) }
         val durations = entries.mapNotNull { metricsCalculator.getDeploymentDuration(it) }
