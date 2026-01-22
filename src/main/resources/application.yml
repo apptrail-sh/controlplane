@@ -1,13 +1,6 @@
 spring:
   application:
     name: controlplane
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:}
-      chat:
-        options:
-          model: ${AI_MODEL:gpt-5.2}
-          temperature: ${AI_TEMPERATURE:0.7}
   profiles:
     include:
       - queries
@@ -94,11 +87,6 @@ server:
   port: 3000
 
 apptrail:
-  ai:
-    enabled: ${AI_ENABLED:false}
-    model: ${AI_MODEL:gpt-4o-mini}
-    max-tokens: ${AI_MAX_TOKENS:2048}
-    temperature: ${AI_TEMPERATURE:0.7}
   quick-links:
     links:
       - name: "GCP Logs"
