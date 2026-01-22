@@ -1,0 +1,94 @@
+apptrail:
+  metrics-queries:
+    enabled: ${METRICS_QUERIES_ENABLED:false}
+    sparklines-enabled: ${METRICS_SPARKLINES_ENABLED:false}
+    queries:
+      - id: error_rate
+        name: Error Rate
+        description: Percentage of requests resulting in errors
+        query: |
+          sum(
+            rate(sttp_requests_error_count_total{}[5m])
+            * on(cluster, namespace, pod) group_left(workload, workload_type)
+            namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+          )
+          /
+          (
+            sum(
+              rate(sttp_requests_success_count_total{}[5m])
+              * on(cluster, namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+            )
+            +
+            sum(
+              rate(sttp_requests_error_count_total{}[5m])
+              * on(cluster, namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+            )
+          )
+        unit: percentage
+        category: errors
+        sparkline-range: 1h
+        sparkline-step: 5m
+
+      - id: request_rate
+        name: Request Rate
+        description: Total requests per second
+        query: |
+          sum(
+            rate(sttp_request_latency_count{}[5m])
+            * on(cluster, namespace, pod) group_left(workload, workload_type)
+            namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+          )
+        unit: requests_per_second
+        category: traffic
+        sparkline-range: 1h
+        sparkline-step: 5m
+
+      - id: latency_p50
+        name: p50 Latency
+        description: 50th percentile response time
+        query: |
+          histogram_quantile(0.50,
+            sum(
+              rate(sttp_request_latency_bucket{}[5m])
+              * on(cluster, namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+            ) by (le)
+          )
+        unit: milliseconds
+        category: latency
+        sparkline-range: 1h
+        sparkline-step: 5m
+
+      - id: latency_p95
+        name: p95 Latency
+        description: 95th percentile response time
+        query: |
+          histogram_quantile(0.95,
+            sum(
+              rate(sttp_request_latency_bucket{}[5m])
+              * on(cluster, namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+            ) by (le)
+          )
+        unit: milliseconds
+        category: latency
+        sparkline-range: 1h
+        sparkline-step: 5m
+
+      - id: latency_p99
+        name: p99 Latency
+        description: 99th percentile response time
+        query: |
+          histogram_quantile(0.99,
+            sum(
+              rate(sttp_request_latency_bucket{}[5m])
+              * on(cluster, namespace, pod) group_left(workload, workload_type)
+              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
+            ) by (le)
+          )
+        unit: milliseconds
+        category: latency
+        sparkline-range: 1h
+        sparkline-step: 5m

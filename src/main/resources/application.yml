@@ -1,6 +1,9 @@
 spring:
   application:
     name: controlplane
+  profiles:
+    include:
+      - queries
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/apptrail
@@ -30,7 +33,7 @@ app:
     #         shard:
     #           name: shard02
     #           order: 2
-    definitions: {}
+    # definitions: {}  # Removed - let profile-specific config provide this
     environments:
       - name: dev
         order: 0

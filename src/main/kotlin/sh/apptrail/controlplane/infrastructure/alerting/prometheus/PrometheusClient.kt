@@ -203,6 +203,93 @@ class PrometheusClient(
       null
     }
   }
+
+  /**
+   * Execute an instant query and return the scalar result.
+   * Used for getting current metric values.
+   */
+  fun queryInstant(query: String): MetricInstantResult? {
+    return try {
+      val response = executeQuery(query)
+      val results = response?.data?.result
+      if (response?.status != "success" || results.isNullOrEmpty()) {
+        return null
+      }
+
+      val result = results.first()
+      val value = result.value
+
+      if (value != null && value.size >= 2) {
+        val timestamp = (value[0] as? Number)?.toLong()
+        val metricValue = (value[1] as? String)?.toDoubleOrNull()
+        MetricInstantResult(value = metricValue, timestamp = timestamp)
+      } else {
+        null
+      }
+    } catch (e: Exception) {
+      log.warn("Prometheus instant query failed: ${e.message}")
+      null
+    }
+  }
+
+  /**
+   * Execute a range query and return time series data.
+   * Used for generating sparklines.
+   */
+  fun queryRange(query: String, range: String, step: String): MetricRangeResult? {
+    return try {
+      val now = System.currentTimeMillis() / 1000
+      val start = now - parseRangeToSeconds(range)
+
+      val rangeQueryPath = properties.queryPath.replace("/query", "/query_range")
+      val uri = java.net.URI.create(
+        "${properties.baseUrl}${rangeQueryPath}?query=${java.net.URLEncoder.encode(query, Charsets.UTF_8)}" +
+          "&start=$start&end=$now&step=$step"
+      )
+
+      val response = restClient.get()
+        .uri(uri)
+        .retrieve()
+        .body(PromQLRangeResponse::class.java)
+
+      val results = response?.data?.result
+      if (response?.status != "success" || results.isNullOrEmpty()) {
+        return null
+      }
+
+      val result = results.first()
+      val points = result.values?.mapNotNull { point ->
+        if (point.size >= 2) {
+          val timestamp = (point[0] as? Number)?.toLong() ?: return@mapNotNull null
+          val value = (point[1] as? String)?.toDoubleOrNull() ?: return@mapNotNull null
+          SparklinePoint(timestamp = timestamp, value = value)
+        } else {
+          null
+        }
+      } ?: emptyList()
+
+      MetricRangeResult(points = points)
+    } catch (e: Exception) {
+      log.warn("Prometheus range query failed: ${e.message}")
+      null
+    }
+  }
+
+  private fun parseRangeToSeconds(range: String): Long {
+    val regex = Regex("""(\d+)([smhd])""")
+    val match = regex.find(range) ?: return 3600 // Default 1h
+
+    val value = match.groupValues[1].toLongOrNull() ?: return 3600
+    val unit = match.groupValues[2]
+
+    return when (unit) {
+      "s" -> value
+      "m" -> value * 60
+      "h" -> value * 3600
+      "d" -> value * 86400
+      else -> 3600
+    }
+  }
 }
 
 data class WorkloadInstanceKey(

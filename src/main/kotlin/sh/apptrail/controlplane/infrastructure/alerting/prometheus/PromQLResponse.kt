@@ -77,3 +77,39 @@ data class AlertAggregation(
   val criticalCount: Int,
   val warningCount: Int,
 )
+
+// Extended PromQL result for range queries (matrix results)
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PromQLRangeResult(
+  val metric: Map<String, String>,
+  val values: List<List<Any>>?, // [[timestamp, value], [timestamp, value], ...]
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PromQLRangeData(
+  val resultType: String, // "matrix" for range queries
+  val result: List<PromQLRangeResult>,
+)
+
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class PromQLRangeResponse(
+  val status: String,
+  val data: PromQLRangeData?,
+  val errorType: String? = null,
+  val error: String? = null,
+)
+
+// Simplified metric result types for the metrics service
+data class MetricInstantResult(
+  val value: Double?,
+  val timestamp: Long?,
+)
+
+data class SparklinePoint(
+  val timestamp: Long,
+  val value: Double,
+)
+
+data class MetricRangeResult(
+  val points: List<SparklinePoint>,
+)
