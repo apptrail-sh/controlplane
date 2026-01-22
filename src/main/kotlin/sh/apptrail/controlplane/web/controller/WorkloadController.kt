@@ -342,12 +342,15 @@ data class AlertsResponse(
   val hasCritical: Boolean,
   val hasWarning: Boolean,
   val details: List<AlertDetailResponse>,
+  val recentAlertCount: Int?,
 )
 
 data class AlertDetailResponse(
   val name: String,
   val severity: String?,
   val activeForSeconds: Long?,
+  val alertGroup: String?,
+  val service: String?,
 )
 
 fun AlertsResult.toResponse(): AlertsResponse {
@@ -360,8 +363,11 @@ fun AlertsResult.toResponse(): AlertsResponse {
         name = detail.name,
         severity = detail.severity,
         activeForSeconds = detail.activeForSeconds,
+        alertGroup = detail.alertGroup,
+        service = detail.service,
       )
     },
+    recentAlertCount = recentAlertCount,
   )
 }
 

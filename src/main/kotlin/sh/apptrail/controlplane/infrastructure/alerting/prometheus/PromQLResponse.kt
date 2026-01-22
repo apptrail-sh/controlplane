@@ -68,3 +68,12 @@ data class AlertKey(
   val cluster: String?,
   val namespace: String?,
 )
+
+data class AlertAggregation(
+  val bySeverity: Map<String, Int>,
+  val byCluster: Map<String, Int>,
+  val byAlertName: Map<String, Int>,
+  val totalCount: Int,
+  val criticalCount: Int,
+  val warningCount: Int,
+)
