@@ -3,17 +3,17 @@ package sh.apptrail.controlplane.web.controller
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 
 @RestController
 @RequestMapping("/api/v1/environments")
 class EnvironmentController(
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
 ) {
   @GetMapping
   fun getEnvironments(): EnvironmentsResponse {
-    val shardsByEnv = clusterEnvironmentResolver.getShardsByEnvironment()
-    val environments = clusterEnvironmentResolver.getEnvironments()
+    val shardsByEnv = clusterTopologyResolver.getShardsByEnvironment()
+    val environments = clusterTopologyResolver.getEnvironments()
 
     return EnvironmentsResponse(
       environments = environments.map { env ->

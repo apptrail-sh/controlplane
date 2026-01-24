@@ -3,14 +3,14 @@ package sh.apptrail.controlplane.infrastructure.ingress.http
 import org.springframework.stereotype.Component
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 
 @Component
 class HttpAgentEventMapper(
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
 ) {
   fun toAgentEvent(payload: AgentEventPayload): AgentEvent {
-    val environment = clusterEnvironmentResolver.resolveEnvironment(payload.source.clusterId)
+    val environment = clusterTopologyResolver.resolveEnvironment(payload.source.clusterId)
     return AgentEvent(
       eventId = payload.eventId,
       occurredAt = payload.occurredAt,

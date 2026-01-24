@@ -6,8 +6,11 @@ import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventOutcome
 import sh.apptrail.controlplane.application.model.agent.DeploymentPhase
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 import sh.apptrail.controlplane.application.service.ReleaseFetchService
+import sh.apptrail.controlplane.infrastructure.notification.NotificationEventPublisher
+import sh.apptrail.controlplane.infrastructure.notification.NotificationType
+import sh.apptrail.controlplane.infrastructure.notification.model.DeploymentNotification
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
@@ -27,7 +30,8 @@ class AgentEventProcessorService(
   @Value("\${app.ingest.team-label:team}")
   private val teamLabelKey: String,
   private val releaseFetchService: ReleaseFetchService?,
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
+  private val notificationEventPublisher: NotificationEventPublisher?,
 ) {
 
   @Transactional
@@ -73,7 +77,7 @@ class AgentEventProcessorService(
 
     val namespace = eventPayload.workload.namespace
     val clusterId = eventPayload.source.clusterId
-    val shardInfo = clusterEnvironmentResolver.resolveShard(clusterId, namespace)
+    val shardInfo = clusterTopologyResolver.resolveShard(clusterId, namespace)
 
     val workloadInstance = workloadInstanceRepository.findByWorkloadAndClusterAndNamespace(
       workload = workload,
@@ -172,6 +176,16 @@ class AgentEventProcessorService(
         }
         latest.detectedAt = detectedAt
         versionHistoryRepository.save(latest)
+
+        // Publish notification for status/phase updates
+        publishNotificationIfNeeded(
+          eventPayload = eventPayload,
+          workload = workload,
+          workloadInstance = workloadInstance,
+          currentVersion = currentVersion,
+          previousVersion = previousVersion,
+          durationSeconds = latest.deploymentDurationSeconds,
+        )
         return
       }
 
@@ -211,6 +225,16 @@ class AgentEventProcessorService(
 
       // Queue release fetch for the new version
       releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
+
+      // Publish notification for new version
+      publishNotificationIfNeeded(
+        eventPayload = eventPayload,
+        workload = workload,
+        workloadInstance = workloadInstance,
+        currentVersion = currentVersion,
+        previousVersion = previousVersion,
+        durationSeconds = savedVersionHistory.deploymentDurationSeconds,
+      )
     }
   }
 
@@ -227,5 +251,49 @@ class AgentEventProcessorService(
 
   private fun workloadTeamFromLabels(labels: Map<String, String>): String? {
     return labels[teamLabelKey]
+  }
+
+  private fun publishNotificationIfNeeded(
+    eventPayload: AgentEvent,
+    workload: WorkloadEntity,
+    workloadInstance: WorkloadInstanceEntity,
+    currentVersion: String,
+    previousVersion: String?,
+    durationSeconds: Int?,
+  ) {
+    if (notificationEventPublisher == null) {
+      return
+    }
+
+    val notificationType = determineNotificationType(eventPayload) ?: return
+
+    val notification = DeploymentNotification(
+      type = notificationType,
+      workloadId = workload.id!!,
+      workloadName = workload.name ?: "",
+      workloadKind = workload.kind ?: "",
+      team = workload.team,
+      environment = workloadInstance.environment,
+      cluster = workloadInstance.cluster.name,
+      namespace = workloadInstance.namespace,
+      currentVersion = currentVersion,
+      previousVersion = previousVersion,
+      occurredAt = eventPayload.occurredAt,
+      deploymentDurationSeconds = durationSeconds,
+      errorMessage = eventPayload.error?.message,
+    )
+
+    notificationEventPublisher.publish(notification)
+  }
+
+  private fun determineNotificationType(eventPayload: AgentEvent): NotificationType? {
+    return when {
+      eventPayload.phase == DeploymentPhase.FAILED -> NotificationType.DEPLOYMENT_FAILED
+      eventPayload.outcome == AgentEventOutcome.FAILED -> NotificationType.DEPLOYMENT_FAILED
+      eventPayload.phase == DeploymentPhase.COMPLETED && eventPayload.outcome == AgentEventOutcome.SUCCEEDED ->
+        NotificationType.DEPLOYMENT_SUCCEEDED
+      eventPayload.phase == DeploymentPhase.PROGRESSING -> NotificationType.DEPLOYMENT_STARTED
+      else -> null
+    }
   }
 }

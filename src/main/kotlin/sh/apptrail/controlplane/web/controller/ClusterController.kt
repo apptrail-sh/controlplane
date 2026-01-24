@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
 import java.time.Instant
 
@@ -13,7 +13,7 @@ import java.time.Instant
 @RequestMapping("/api/v1/clusters")
 class ClusterController(
   private val clusterRepository: ClusterRepository,
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
 ) {
   @GetMapping
   fun listClusters(): List<ClusterDetailResponse> {
@@ -21,7 +21,7 @@ class ClusterController(
       ClusterDetailResponse(
         id = cluster.id ?: 0,
         name = cluster.name,
-        alias = clusterEnvironmentResolver.resolveAlias(cluster.name),
+        alias = clusterTopologyResolver.resolveAlias(cluster.name),
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )
@@ -37,7 +37,7 @@ class ClusterController(
       ClusterDetailResponse(
         id = cluster.id ?: 0,
         name = cluster.name,
-        alias = clusterEnvironmentResolver.resolveAlias(cluster.name),
+        alias = clusterTopologyResolver.resolveAlias(cluster.name),
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )

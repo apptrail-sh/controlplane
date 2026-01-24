@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.AlertService
 import sh.apptrail.controlplane.application.service.AlertsResult
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 import sh.apptrail.controlplane.application.service.InstanceKey
 import sh.apptrail.controlplane.application.service.MetricsFilters
 import sh.apptrail.controlplane.application.service.WorkloadMetricsResponse
@@ -32,7 +32,7 @@ class WorkloadController(
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val versionHistoryRepository: VersionHistoryRepository,
   private val workloadService: WorkloadService,
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
   private val alertService: AlertService,
   private val workloadMetricsService: WorkloadMetricsService,
 ) {
@@ -83,7 +83,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
+              alias = clusterTopologyResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,
@@ -142,7 +142,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
+              alias = clusterTopologyResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,
@@ -206,7 +206,7 @@ class WorkloadController(
             cluster = ClusterResponse(
               id = instance.cluster.id ?: 0,
               name = instance.cluster.name,
-              alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
+              alias = clusterTopologyResolver.resolveAlias(instance.cluster.name),
             ),
             namespace = instance.namespace,
             environment = instance.environment,

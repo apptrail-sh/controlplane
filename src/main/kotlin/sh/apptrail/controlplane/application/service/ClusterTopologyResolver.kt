@@ -11,9 +11,13 @@ data class ShardInfo(
 
 @Service
 @EnableConfigurationProperties(ClusterEnvironmentProperties::class)
-class ClusterEnvironmentResolver(
+class ClusterTopologyResolver(
   private val properties: ClusterEnvironmentProperties,
 ) {
+
+  /**
+   * Resolves the environment for a given cluster.
+   */
   fun resolveEnvironment(clusterId: String): String {
     return properties.definitions[clusterId]?.environment ?: "unknown"
   }

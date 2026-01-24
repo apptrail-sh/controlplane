@@ -87,6 +87,47 @@ server:
   port: 3000
 
 apptrail:
+  notifications:
+    enabled: ${NOTIFICATIONS_ENABLED:false}
+    frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+    channels:
+      - name: "default-slack"
+        type: slack
+        enabled: true
+        notification-types:
+          - DEPLOYMENT_STARTED
+          - DEPLOYMENT_SUCCEEDED
+          - DEPLOYMENT_FAILED
+        slack:
+          webhook-url: "${SLACK_WEBHOOK_URL:}"
+          channel: "#apptrail"
+    # Example channel configuration:
+    # channels:
+    #   - name: "team1-failures"
+    #     type: slack
+    #     enabled: true
+    #     team: "team1"                    # Optional: filter by team (null = all)
+    #     environments:                    # Optional: filter by environment (null = all)
+    #       - production
+    #     notification-types:
+    #       - DEPLOYMENT_FAILED
+    #     slack:
+    #       webhook-url: "${SLACK_WEBHOOK_TEAM1:}"
+    #       channel: "#team1-alerts"       # Display reference in messages
+    #       mention-on-failure: "@oncall"  # Optional
+    #
+    #   - name: "all-production-deploys"
+    #     type: slack
+    #     enabled: true
+    #     environments:
+    #       - production
+    #     notification-types:
+    #       - DEPLOYMENT_SUCCEEDED
+    #       - DEPLOYMENT_FAILED
+    #     slack:
+    #       webhook-url: "${SLACK_WEBHOOK_PRODUCTION:}"
+    #       channel: "#production-deployments"
+
   quick-links:
     links:
       - name: "GCP Logs"

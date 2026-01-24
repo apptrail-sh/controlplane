@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.AlertService
 import sh.apptrail.controlplane.application.service.AlertsResult
-import sh.apptrail.controlplane.application.service.ClusterEnvironmentResolver
+import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 import sh.apptrail.controlplane.application.service.InstanceKey
 import sh.apptrail.controlplane.application.service.MetricsFilters
 import sh.apptrail.controlplane.application.service.TeamScorecardResponse
@@ -26,7 +26,7 @@ import java.time.ZoneOffset
 class TeamController(
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
-  private val clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  private val clusterTopologyResolver: ClusterTopologyResolver,
   private val teamScorecardService: TeamScorecardService,
   private val alertService: AlertService,
 ) {
@@ -82,7 +82,7 @@ class TeamController(
     val alertsByInstance = alertService.getAlertsForInstances(instanceKeys)
 
     val workloadResponses = workloads.map { workload ->
-      workloadToResponse(workload, instancesByWorkloadId[workload.id].orEmpty(), clusterEnvironmentResolver, alertsByInstance)
+      workloadToResponse(workload, instancesByWorkloadId[workload.id].orEmpty(), clusterTopologyResolver, alertsByInstance)
     }
 
     val latestActivity = instances.mapNotNull { it.lastUpdatedAt }.maxOrNull()
@@ -149,7 +149,7 @@ data class TeamDetailResponse(
 private fun workloadToResponse(
   workload: WorkloadEntity,
   instances: List<WorkloadInstanceEntity>,
-  clusterEnvironmentResolver: ClusterEnvironmentResolver,
+  clusterTopologyResolver: ClusterTopologyResolver,
   alertsByInstance: Map<InstanceKey, AlertsResult>,
 ): WorkloadResponse {
   return WorkloadResponse(
@@ -177,7 +177,7 @@ private fun workloadToResponse(
         cluster = ClusterResponse(
           id = instance.cluster.id ?: 0,
           name = instance.cluster.name,
-          alias = clusterEnvironmentResolver.resolveAlias(instance.cluster.name),
+          alias = clusterTopologyResolver.resolveAlias(instance.cluster.name),
         ),
         namespace = instance.namespace,
         environment = instance.environment,
