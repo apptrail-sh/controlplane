@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.application.service
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service
-import sh.apptrail.controlplane.infrastructure.config.ClusterEnvironmentProperties
+import sh.apptrail.controlplane.infrastructure.config.ClusterTopologyProperties
 import sh.apptrail.controlplane.infrastructure.config.MetricCategory
 import sh.apptrail.controlplane.infrastructure.config.MetricUnit
 import sh.apptrail.controlplane.infrastructure.config.MetricsQueriesProperties
@@ -12,7 +12,7 @@ data class MetricQueryContext(
   val clusterId: Long? = null,
   val namespace: String,
   val environment: String,
-  val shard: String? = null,
+  val cell: String? = null,
   val workloadName: String,
   val workloadKind: String,
   val team: String? = null,
@@ -42,10 +42,10 @@ data class MetricQueryTemplate(
 )
 
 @Service
-@EnableConfigurationProperties(MetricsQueriesProperties::class, ClusterEnvironmentProperties::class)
+@EnableConfigurationProperties(MetricsQueriesProperties::class, ClusterTopologyProperties::class)
 class MetricsQueryService(
   private val metricsQueriesProperties: MetricsQueriesProperties,
-  private val clusterEnvironmentProperties: ClusterEnvironmentProperties,
+  private val clusterTopologyProperties: ClusterTopologyProperties,
 ) {
 
   fun isEnabled(): Boolean = metricsQueriesProperties.enabled
@@ -85,7 +85,7 @@ class MetricsQueryService(
   }
 
   private fun getEnvironmentMetadata(environmentName: String): Map<String, String> {
-    return clusterEnvironmentProperties.environments
+    return clusterTopologyProperties.environments
       .find { it.name == environmentName }
       ?.metadata
       ?: emptyMap()
@@ -102,7 +102,7 @@ class MetricsQueryService(
       "cluster.id" to (context.clusterId?.toString() ?: ""),
       "namespace" to context.namespace,
       "environment" to context.environment,
-      "shard" to (context.shard ?: ""),
+      "cell" to (context.cell ?: ""),
       "workload.name" to context.workloadName,
       "workload.kind" to context.workloadKind,
       "team" to (context.team ?: ""),

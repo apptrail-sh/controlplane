@@ -38,4 +38,5 @@ out/
 
 ### Kotlin ###
 .kotlin
-/src/main/resources/application-shards.yml
+/src/main/resources/application-cells.yml
+/src/main/resources/*bkp.yml

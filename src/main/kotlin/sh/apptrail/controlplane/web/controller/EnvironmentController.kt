@@ -12,13 +12,13 @@ class EnvironmentController(
 ) {
   @GetMapping
   fun getEnvironments(): EnvironmentsResponse {
-    val shardsByEnv = clusterTopologyResolver.getShardsByEnvironment()
+    val cellsByEnv = clusterTopologyResolver.getCellsByEnvironment()
     val environments = clusterTopologyResolver.getEnvironments()
 
     return EnvironmentsResponse(
       environments = environments.map { env ->
-        val envShards = shardsByEnv[env.name]?.map { ShardInfoResponse(name = it.name, order = it.order) }
-        EnvironmentInfo(name = env.name, order = env.order, shards = envShards)
+        val envCells = cellsByEnv[env.name]?.map { CellInfoResponse(name = it.name, order = it.order) }
+        EnvironmentInfo(name = env.name, order = env.order, cells = envCells)
       }
     )
   }
@@ -28,6 +28,6 @@ data class EnvironmentsResponse(val environments: List<EnvironmentInfo>)
 data class EnvironmentInfo(
   val name: String,
   val order: Int,
-  val shards: List<ShardInfoResponse>? = null,
+  val cells: List<CellInfoResponse>? = null,
 )
-data class ShardInfoResponse(val name: String, val order: Int)
+data class CellInfoResponse(val name: String, val order: Int)

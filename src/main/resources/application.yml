@@ -25,12 +25,12 @@ app:
     #   cluster-staging-gke-usce1:
     #     environment: staging
     #     alias: stg.01
-    #     shard:
+    #     cell:
     #       name: canary
     #       order: 0
     #     namespaces:  # Optional namespace-level shard overrides
     #       special-ns:
-    #         shard:
+    #         cell:
     #           name: shard02
     #           order: 2
     # definitions: {}  # Removed - let profile-specific config provide this

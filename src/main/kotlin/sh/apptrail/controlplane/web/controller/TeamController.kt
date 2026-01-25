@@ -177,11 +177,11 @@ private fun workloadToResponse(
         cluster = ClusterResponse(
           id = instance.cluster.id ?: 0,
           name = instance.cluster.name,
-          alias = clusterTopologyResolver.resolveAlias(instance.cluster.name),
+          alias = clusterTopologyResolver.resolveLocationAlias(instance.cluster.name, instance.namespace),
         ),
         namespace = instance.namespace,
         environment = instance.environment,
-        shard = instance.shard,
+        cell = instance.cell,
         currentVersion = instance.currentVersion,
         labels = instance.labels,
         firstSeenAt = instance.firstSeenAt,

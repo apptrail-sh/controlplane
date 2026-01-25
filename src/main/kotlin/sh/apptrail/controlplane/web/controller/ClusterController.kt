@@ -21,7 +21,7 @@ class ClusterController(
       ClusterDetailResponse(
         id = cluster.id ?: 0,
         name = cluster.name,
-        alias = clusterTopologyResolver.resolveAlias(cluster.name),
+        alias = clusterTopologyResolver.resolveClusterAlias(cluster.name),
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )
@@ -37,7 +37,7 @@ class ClusterController(
       ClusterDetailResponse(
         id = cluster.id ?: 0,
         name = cluster.name,
-        alias = clusterTopologyResolver.resolveAlias(cluster.name),
+        alias = clusterTopologyResolver.resolveClusterAlias(cluster.name),
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )

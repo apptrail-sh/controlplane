@@ -77,7 +77,15 @@ class AgentEventProcessorService(
 
     val namespace = eventPayload.workload.namespace
     val clusterId = eventPayload.source.clusterId
-    val shardInfo = clusterTopologyResolver.resolveShard(clusterId, namespace)
+    val cellInfo = clusterTopologyResolver.resolveCell(clusterId, namespace)
+
+    // Resolve environment: topology config takes precedence, agent-provided is fallback
+    val resolvedEnvironment = clusterTopologyResolver.resolveEnvironment(clusterId, namespace)
+    val environment = if (resolvedEnvironment != "unknown") {
+      resolvedEnvironment
+    } else {
+      eventPayload.environment
+    }
 
     val workloadInstance = workloadInstanceRepository.findByWorkloadAndClusterAndNamespace(
       workload = workload,
@@ -87,18 +95,18 @@ class AgentEventProcessorService(
       this.workload = workload
       this.cluster = cluster
       this.namespace = namespace
-      this.environment = eventPayload.environment
-      this.shard = shardInfo?.name
+      this.environment = environment
+      this.cell = cellInfo?.name
     }
 
     // Update environment if it changed (e.g., from "unknown" to actual value)
-    if (workloadInstance.environment != eventPayload.environment) {
-      workloadInstance.environment = eventPayload.environment
+    if (workloadInstance.environment != environment) {
+      workloadInstance.environment = environment
     }
 
-    // Only update shard if a valid config is found - don't reset to null if no config matches
-    if (shardInfo != null && workloadInstance.shard != shardInfo.name) {
-      workloadInstance.shard = shardInfo.name
+    // Only update cell if a valid config is found - don't reset to null if no config matches
+    if (cellInfo != null && workloadInstance.cell != cellInfo.name) {
+      workloadInstance.cell = cellInfo.name
     }
 
     val now = Instant.now()

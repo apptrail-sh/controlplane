@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.application.service
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service
-import sh.apptrail.controlplane.infrastructure.config.ClusterEnvironmentProperties
+import sh.apptrail.controlplane.infrastructure.config.ClusterTopologyProperties
 import sh.apptrail.controlplane.infrastructure.config.QuickLinkType
 import sh.apptrail.controlplane.infrastructure.config.QuickLinksProperties
 
@@ -11,7 +11,7 @@ data class QuickLinkContext(
   val clusterId: Long? = null,
   val namespace: String,
   val environment: String,
-  val shard: String? = null,
+  val cell: String? = null,
   val workloadName: String,
   val workloadKind: String,
   val team: String? = null,
@@ -35,10 +35,10 @@ data class QuickLinkTemplate(
 )
 
 @Service
-@EnableConfigurationProperties(QuickLinksProperties::class, ClusterEnvironmentProperties::class)
+@EnableConfigurationProperties(QuickLinksProperties::class, ClusterTopologyProperties::class)
 class QuickLinkService(
   private val quickLinksProperties: QuickLinksProperties,
-  private val clusterEnvironmentProperties: ClusterEnvironmentProperties,
+  private val clusterTopologyProperties: ClusterTopologyProperties,
 ) {
 
   fun getAllTemplates(): List<QuickLinkTemplate> {
@@ -68,7 +68,7 @@ class QuickLinkService(
   }
 
   private fun getEnvironmentMetadata(environmentName: String): Map<String, String> {
-    return clusterEnvironmentProperties.environments
+    return clusterTopologyProperties.environments
       .find { it.name == environmentName }
       ?.metadata
       ?: emptyMap()
@@ -85,7 +85,7 @@ class QuickLinkService(
       "cluster.id" to (context.clusterId?.toString() ?: ""),
       "instance.namespace" to context.namespace,
       "instance.environment" to context.environment,
-      "instance.shard" to (context.shard ?: ""),
+      "instance.cell" to (context.cell ?: ""),
       "workload.name" to context.workloadName,
       "workload.kind" to context.workloadKind,
       "workload.team" to (context.team ?: ""),

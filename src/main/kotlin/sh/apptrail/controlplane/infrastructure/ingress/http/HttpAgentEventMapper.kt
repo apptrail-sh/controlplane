@@ -10,7 +10,10 @@ class HttpAgentEventMapper(
   private val clusterTopologyResolver: ClusterTopologyResolver,
 ) {
   fun toAgentEvent(payload: AgentEventPayload): AgentEvent {
-    val environment = clusterTopologyResolver.resolveEnvironment(payload.source.clusterId)
+    val environment = clusterTopologyResolver.resolveEnvironment(
+      payload.source.clusterId,
+      payload.workload.namespace
+    )
     return AgentEvent(
       eventId = payload.eventId,
       occurredAt = payload.occurredAt,
