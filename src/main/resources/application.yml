@@ -18,6 +18,9 @@ spring:
         enabled: ${PUBSUB_ENABLED:false}
 
 app:
+  backfill:
+    cell:
+      enabled-on-startup: false  # Set to true to run cell backfill on startup
   clusters:
     # Unified cluster definitions
     # Example configuration:

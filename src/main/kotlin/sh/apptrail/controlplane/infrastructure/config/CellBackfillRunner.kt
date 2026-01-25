@@ -1,59 +1,37 @@
-//package sh.apptrail.controlplane.infrastructure.config
-//
-//import org.slf4j.LoggerFactory
-//import org.springframework.boot.context.event.ApplicationReadyEvent
-//import org.springframework.context.event.EventListener
-//import org.springframework.stereotype.Component
-//import org.springframework.transaction.annotation.Transactional
-//import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
-//import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
-//
-///**
-// * Startup task that backfills the cell field for existing workload instances
-// * based on the current cell configuration.
-// */
-//@Component
-//class CellBackfillRunner(
-//  private val workloadInstanceRepository: WorkloadInstanceRepository,
-//  private val clusterTopologyResolver: ClusterTopologyResolver,
-//) {
-//
-//  private val log = LoggerFactory.getLogger(CellBackfillRunner::class.java)
-//
-//  @EventListener(ApplicationReadyEvent::class)
-//  @Transactional
-//  fun onApplicationReady() {
-//    log.info("Checking for workload instances that need cell backfill...")
-//
-//    val instances = workloadInstanceRepository.findAll()
-//    var updatedCount = 0
-//
-//    for (instance in instances) {
-//      val clusterId = instance.cluster.name
-//      val namespace = instance.namespace
-//      val cellInfo = clusterTopologyResolver.resolveCell(clusterId, namespace)
-//
-//      val expectedCell = cellInfo?.name
-//
-//      // Only update if cell value is different
-//      if (instance.cell != expectedCell) {
-//        instance.cell = expectedCell
-//        workloadInstanceRepository.save(instance)
-//        updatedCount++
-//
-//        if (expectedCell != null) {
-//          log.debug(
-//            "Backfilled cell '{}' for workload instance: cluster={}, namespace={}, workload={}",
-//            expectedCell, clusterId, namespace, instance.workload.name
-//          )
-//        }
-//      }
-//    }
-//
-//    if (updatedCount > 0) {
-//      log.info("Backfilled cell for {} workload instance(s)", updatedCount)
-//    } else {
-//      log.info("No workload instances needed cell backfill")
-//    }
-//  }
-//}
+package sh.apptrail.controlplane.infrastructure.config
+
+import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.event.EventListener
+import org.springframework.stereotype.Component
+import sh.apptrail.controlplane.application.service.CellBackfillService
+
+/**
+ * Startup task that backfills the cell field for existing workload instances
+ * based on the current cell configuration.
+ *
+ * Enabled via `app.backfill.cell.enabled-on-startup=true`
+ */
+@Component
+@ConditionalOnProperty(
+  prefix = "app.backfill.cell",
+  name = ["enabled-on-startup"],
+  havingValue = "true",
+  matchIfMissing = false
+)
+@EnableConfigurationProperties(CellBackfillProperties::class)
+class CellBackfillRunner(
+  private val cellBackfillService: CellBackfillService,
+) {
+
+  private val log = LoggerFactory.getLogger(CellBackfillRunner::class.java)
+
+  @EventListener(ApplicationReadyEvent::class)
+  fun onApplicationReady() {
+    log.info("Running cell backfill on startup...")
+    val result = cellBackfillService.runBackfill()
+    log.info("Startup cell backfill completed: {} processed, {} updated", result.totalProcessed, result.updatedCount)
+  }
+}
