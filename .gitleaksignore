@@ -1,0 +1,2 @@
+# False positive - PEM header parsing code, not actual secrets
+src/main/kotlin/sh/apptrail/controlplane/infrastructure/gitprovider/github/GitHubAuthService.kt:private-key
