@@ -19,6 +19,7 @@ import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRep
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
+import java.time.Duration
 import java.time.Instant
 
 @Service
@@ -34,58 +35,95 @@ class AgentEventProcessorService(
   private val notificationEventPublisher: NotificationEventPublisher?,
 ) {
 
+  companion object {
+    private const val UNKNOWN_ENVIRONMENT = "unknown"
+    private const val STATUS_SUCCESS = "success"
+    private const val STATUS_FAILED = "failed"
+    private const val PART_OF_LABEL = "app.kubernetes.io/part-of"
+  }
+
   @Transactional
   fun processEvent(eventPayload: AgentEvent) {
     validateEvent(eventPayload)
 
-    val cluster = clusterRepository.findByName(eventPayload.source.clusterId)
-      ?: clusterRepository.save(ClusterEntity().apply {
-        name = eventPayload.source.clusterId
-      })
-
-    val workloadKind = eventPayload.workload.kind.name
-    val workloadName = eventPayload.workload.name
-    val workloadPartOf = eventPayload.labels["app.kubernetes.io/part-of"]
-
-    val workloadTeam = workloadTeamFromLabels(eventPayload.labels)
-
-    val existingWorkload = workloadRepository.findByKindAndName(
-      kind = workloadKind,
-      name = workloadName,
+    val cluster = resolveOrCreateCluster(eventPayload.source.clusterId)
+    val workload = resolveOrCreateWorkload(
+      kind = eventPayload.workload.kind.name,
+      name = eventPayload.workload.name,
+      partOf = eventPayload.labels[PART_OF_LABEL],
+      team = workloadTeamFromLabels(eventPayload.labels),
+    )
+    val environment = resolveEnvironment(
+      clusterId = eventPayload.source.clusterId,
+      namespace = eventPayload.workload.namespace,
+      agentProvidedEnvironment = eventPayload.environment,
+    )
+    val workloadInstance = resolveOrCreateWorkloadInstance(
+      workload = workload,
+      cluster = cluster,
+      namespace = eventPayload.workload.namespace,
+      clusterId = eventPayload.source.clusterId,
+      environment = environment,
+      eventPayload = eventPayload,
     )
 
-    val workload = if (existingWorkload != null) {
-      // Update mutable properties if they changed
-      val partOfChanged = existingWorkload.partOf != workloadPartOf
-      val teamChanged = existingWorkload.team != workloadTeam
+    processVersionHistory(workloadInstance, workload, eventPayload)
+  }
+
+  // --- Entity Resolution Methods ---
+
+  private fun resolveOrCreateCluster(clusterId: String): ClusterEntity {
+    return clusterRepository.findByName(clusterId)
+      ?: clusterRepository.save(ClusterEntity().apply { name = clusterId })
+  }
+
+  private fun resolveOrCreateWorkload(
+    kind: String,
+    name: String,
+    partOf: String?,
+    team: String?,
+  ): WorkloadEntity {
+    val existing = workloadRepository.findByKindAndName(kind = kind, name = name)
+
+    return if (existing != null) {
+      val partOfChanged = existing.partOf != partOf
+      val teamChanged = existing.team != team
 
       if (partOfChanged || teamChanged) {
-        existingWorkload.partOf = workloadPartOf
-        existingWorkload.team = workloadTeam
-        workloadRepository.save(existingWorkload)
+        existing.partOf = partOf
+        existing.team = team
+        workloadRepository.save(existing)
       } else {
-        existingWorkload
+        existing
       }
     } else {
       workloadRepository.save(WorkloadEntity().apply {
-        kind = workloadKind
-        name = workloadName
-        team = workloadTeam
-        partOf = workloadPartOf
+        this.kind = kind
+        this.name = name
+        this.team = team
+        this.partOf = partOf
       })
     }
+  }
 
-    val namespace = eventPayload.workload.namespace
-    val clusterId = eventPayload.source.clusterId
+  private fun resolveEnvironment(
+    clusterId: String,
+    namespace: String,
+    agentProvidedEnvironment: String,
+  ): String {
+    val resolved = clusterTopologyResolver.resolveEnvironment(clusterId, namespace)
+    return if (resolved != UNKNOWN_ENVIRONMENT) resolved else agentProvidedEnvironment
+  }
+
+  private fun resolveOrCreateWorkloadInstance(
+    workload: WorkloadEntity,
+    cluster: ClusterEntity,
+    namespace: String,
+    clusterId: String,
+    environment: String,
+    eventPayload: AgentEvent,
+  ): WorkloadInstanceEntity {
     val cellInfo = clusterTopologyResolver.resolveCell(clusterId, namespace)
-
-    // Resolve environment: topology config takes precedence, agent-provided is fallback
-    val resolvedEnvironment = clusterTopologyResolver.resolveEnvironment(clusterId, namespace)
-    val environment = if (resolvedEnvironment != "unknown") {
-      resolvedEnvironment
-    } else {
-      eventPayload.environment
-    }
 
     val workloadInstance = workloadInstanceRepository.findByWorkloadAndClusterAndNamespace(
       workload = workload,
@@ -99,93 +137,48 @@ class AgentEventProcessorService(
       this.cell = cellInfo?.name
     }
 
-    // Update environment if it changed (e.g., from "unknown" to actual value)
+    // Update environment if it changed
     if (workloadInstance.environment != environment) {
       workloadInstance.environment = environment
     }
 
-    // Only update cell if a valid config is found - don't reset to null if no config matches
+    // Only update cell if a valid config is found
     if (cellInfo != null && workloadInstance.cell != cellInfo.name) {
       workloadInstance.cell = cellInfo.name
     }
 
     val now = Instant.now()
-    val isNewInstance = workloadInstance.firstSeenAt == null
-    if (isNewInstance) {
+    if (workloadInstance.firstSeenAt == null) {
       workloadInstance.firstSeenAt = now
       workloadInstance.lastUpdatedAt = now
     }
     workloadInstance.currentVersion = eventPayload.revision?.current
     workloadInstance.labels = eventPayload.labels
-    workloadInstanceRepository.save(workloadInstance)
 
-    val revision = eventPayload.revision
-    if (revision != null && revision.current.isNotBlank()) {
-      val currentVersion = revision.current.trim()
-      var previousVersion = revision.previous?.ifBlank { null }
-      if (previousVersion == currentVersion) {
-        previousVersion = null
-      }
+    return workloadInstanceRepository.save(workloadInstance)
+  }
 
-      val phaseValue = eventPayload.phase?.name?.lowercase()
-      val statusValue = when (eventPayload.outcome) {
-        AgentEventOutcome.SUCCEEDED -> "success"
-        AgentEventOutcome.FAILED -> "failed"
-        null -> null
-      }
-      val detectedAt = eventPayload.occurredAt
+  // --- Version History Methods ---
 
-      val latest = versionHistoryRepository.findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstance.id!!)
-      if (latest != null && latest.currentVersion == currentVersion) {
-        // Same version - only update phase/status, NOT lastUpdatedAt
-        val phaseChanged = phaseValue != null && phaseValue != latest.deploymentPhase
-        val statusChanged = statusValue != null && statusValue != latest.deploymentStatus
-        if (!phaseChanged && !statusChanged) {
-          return
-        }
+  private fun processVersionHistory(
+    workloadInstance: WorkloadInstanceEntity,
+    workload: WorkloadEntity,
+    eventPayload: AgentEvent,
+  ) {
+    val revision = eventPayload.revision ?: return
+    if (revision.current.isBlank()) return
 
-        if (phaseValue != null) {
-          latest.deploymentPhase = phaseValue
-          when (eventPayload.phase) {
-            DeploymentPhase.PENDING -> {}
-            DeploymentPhase.PROGRESSING -> {
-              if (latest.deploymentStartedAt == null) {
-                latest.deploymentStartedAt = detectedAt
-              }
-            }
-            DeploymentPhase.COMPLETED -> {
-              latest.deploymentCompletedAt = detectedAt
-              // Calculate duration if we have both timestamps
-              if (latest.deploymentStartedAt != null) {
-                latest.deploymentDurationSeconds = java.time.Duration.between(
-                  latest.deploymentStartedAt,
-                  detectedAt
-                ).seconds.toInt()
-              }
-            }
-            DeploymentPhase.FAILED -> {
-              latest.deploymentFailedAt = detectedAt
-              // Calculate duration if we have start time (time until failure)
-              if (latest.deploymentStartedAt != null && latest.deploymentDurationSeconds == null) {
-                latest.deploymentDurationSeconds = java.time.Duration.between(
-                  latest.deploymentStartedAt,
-                  detectedAt
-                ).seconds.toInt()
-              }
-            }
-            null -> {}
-          }
-        }
-        if (statusValue != null) {
-          latest.deploymentStatus = statusValue
-        } else if (eventPayload.phase == DeploymentPhase.PROGRESSING && latest.deploymentStatus != null) {
-          // Clear stale status when transitioning back to progressing (e.g., pod restart after success)
-          latest.deploymentStatus = null
-        }
-        latest.detectedAt = detectedAt
-        versionHistoryRepository.save(latest)
+    val currentVersion = revision.current.trim()
+    var previousVersion = normalizePreviousVersion(revision.previous, currentVersion)
+    val phaseValue = eventPayload.phase?.name?.lowercase()
+    val statusValue = mapOutcomeToStatus(eventPayload.outcome)
+    val detectedAt = eventPayload.occurredAt
 
-        // Publish notification for status/phase updates
+    val latest = versionHistoryRepository.findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstance.id!!)
+
+    if (latest != null && latest.currentVersion == currentVersion) {
+      val updated = updateExistingVersionHistory(latest, eventPayload, phaseValue, statusValue, detectedAt)
+      if (updated) {
         publishNotificationIfNeeded(
           eventPayload = eventPayload,
           workload = workload,
@@ -194,56 +187,150 @@ class AgentEventProcessorService(
           previousVersion = previousVersion,
           durationSeconds = latest.deploymentDurationSeconds,
         )
-        return
       }
+      return
+    }
 
-      if (latest != null && previousVersion == null) {
-        previousVersion = latest.currentVersion
-        if (previousVersion == currentVersion) {
-          previousVersion = null
+    // Derive previousVersion from latest if not provided
+    if (latest != null && previousVersion == null) {
+      previousVersion = latest.currentVersion
+      if (previousVersion == currentVersion) {
+        previousVersion = null
+      }
+    }
+
+    createNewVersionHistory(
+      workloadInstance = workloadInstance,
+      workload = workload,
+      eventPayload = eventPayload,
+      currentVersion = currentVersion,
+      previousVersion = previousVersion,
+      phaseValue = phaseValue,
+      statusValue = statusValue,
+      detectedAt = detectedAt,
+    )
+  }
+
+  private fun updateExistingVersionHistory(
+    latest: VersionHistoryEntity,
+    eventPayload: AgentEvent,
+    phaseValue: String?,
+    statusValue: String?,
+    detectedAt: Instant,
+  ): Boolean {
+    val phaseChanged = phaseValue != null && phaseValue != latest.deploymentPhase
+    val statusChanged = statusValue != null && statusValue != latest.deploymentStatus
+
+    if (!phaseChanged && !statusChanged) {
+      return false
+    }
+
+    if (phaseValue != null) {
+      latest.deploymentPhase = phaseValue
+      applyPhaseTimestamps(latest, eventPayload.phase, detectedAt)
+    }
+
+    if (statusValue != null) {
+      latest.deploymentStatus = statusValue
+    } else if (eventPayload.phase == DeploymentPhase.PROGRESSING && latest.deploymentStatus != null) {
+      // Clear stale status when transitioning back to progressing
+      latest.deploymentStatus = null
+    }
+
+    latest.detectedAt = detectedAt
+    versionHistoryRepository.save(latest)
+    return true
+  }
+
+  private fun createNewVersionHistory(
+    workloadInstance: WorkloadInstanceEntity,
+    workload: WorkloadEntity,
+    eventPayload: AgentEvent,
+    currentVersion: String,
+    previousVersion: String?,
+    phaseValue: String?,
+    statusValue: String?,
+    detectedAt: Instant,
+  ) {
+    // New version detected - update lastUpdatedAt
+    workloadInstance.lastUpdatedAt = Instant.now()
+    workloadInstanceRepository.save(workloadInstance)
+
+    val versionHistory = VersionHistoryEntity(
+      workloadInstance = workloadInstance,
+      previousVersion = previousVersion,
+      currentVersion = currentVersion,
+      deploymentStatus = statusValue,
+      deploymentPhase = phaseValue,
+      deploymentStartedAt = if (eventPayload.phase == DeploymentPhase.PROGRESSING) detectedAt else null,
+      deploymentCompletedAt = if (eventPayload.phase == DeploymentPhase.COMPLETED) detectedAt else null,
+      deploymentFailedAt = if (eventPayload.phase == DeploymentPhase.FAILED) detectedAt else null,
+      detectedAt = detectedAt,
+    )
+
+    val savedVersionHistory = versionHistoryRepository.save(versionHistory)
+
+    releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
+
+    publishNotificationIfNeeded(
+      eventPayload = eventPayload,
+      workload = workload,
+      workloadInstance = workloadInstance,
+      currentVersion = currentVersion,
+      previousVersion = previousVersion,
+      durationSeconds = savedVersionHistory.deploymentDurationSeconds,
+    )
+  }
+
+  private fun applyPhaseTimestamps(
+    versionHistory: VersionHistoryEntity,
+    phase: DeploymentPhase?,
+    detectedAt: Instant,
+  ) {
+    when (phase) {
+      DeploymentPhase.PENDING -> {}
+      DeploymentPhase.PROGRESSING -> {
+        if (versionHistory.deploymentStartedAt == null) {
+          versionHistory.deploymentStartedAt = detectedAt
         }
       }
-
-      // New version detected - update lastUpdatedAt
-      workloadInstance.lastUpdatedAt = now
-      workloadInstanceRepository.save(workloadInstance)
-
-      val savedVersionHistory = versionHistoryRepository.save(
-        VersionHistoryEntity(
-          workloadInstance = workloadInstance,
-          previousVersion = previousVersion,
-          currentVersion = currentVersion,
-          deploymentStatus = statusValue,
-          deploymentPhase = phaseValue,
-          deploymentStartedAt = when (eventPayload.phase) {
-            DeploymentPhase.PROGRESSING -> detectedAt
-            else -> null
-          },
-          deploymentCompletedAt = when (eventPayload.phase) {
-            DeploymentPhase.COMPLETED -> detectedAt
-            else -> null
-          },
-          deploymentFailedAt = when (eventPayload.phase) {
-            DeploymentPhase.FAILED -> detectedAt
-            else -> null
-          },
-          detectedAt = detectedAt,
+      DeploymentPhase.COMPLETED -> {
+        versionHistory.deploymentCompletedAt = detectedAt
+        versionHistory.deploymentDurationSeconds = calculateDeploymentDuration(
+          versionHistory.deploymentStartedAt,
+          detectedAt,
         )
-      )
-
-      // Queue release fetch for the new version
-      releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
-
-      // Publish notification for new version
-      publishNotificationIfNeeded(
-        eventPayload = eventPayload,
-        workload = workload,
-        workloadInstance = workloadInstance,
-        currentVersion = currentVersion,
-        previousVersion = previousVersion,
-        durationSeconds = savedVersionHistory.deploymentDurationSeconds,
-      )
+      }
+      DeploymentPhase.FAILED -> {
+        versionHistory.deploymentFailedAt = detectedAt
+        if (versionHistory.deploymentDurationSeconds == null) {
+          versionHistory.deploymentDurationSeconds = calculateDeploymentDuration(
+            versionHistory.deploymentStartedAt,
+            detectedAt,
+          )
+        }
+      }
+      null -> {}
     }
+  }
+
+  // --- Simple Helper Methods ---
+
+  private fun calculateDeploymentDuration(startedAt: Instant?, endedAt: Instant): Int? {
+    return startedAt?.let { Duration.between(it, endedAt).seconds.toInt() }
+  }
+
+  private fun mapOutcomeToStatus(outcome: AgentEventOutcome?): String? {
+    return when (outcome) {
+      AgentEventOutcome.SUCCEEDED -> STATUS_SUCCESS
+      AgentEventOutcome.FAILED -> STATUS_FAILED
+      null -> null
+    }
+  }
+
+  private fun normalizePreviousVersion(previous: String?, current: String): String? {
+    val normalized = previous?.ifBlank { null }
+    return if (normalized == current) null else normalized
   }
 
   private fun validateEvent(eventPayload: AgentEvent) {
@@ -260,6 +347,8 @@ class AgentEventProcessorService(
   private fun workloadTeamFromLabels(labels: Map<String, String>): String? {
     return labels[teamLabelKey]
   }
+
+  // --- Notification Methods ---
 
   private fun publishNotificationIfNeeded(
     eventPayload: AgentEvent,
