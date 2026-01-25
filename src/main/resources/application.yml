@@ -9,6 +9,8 @@ spring:
     url: jdbc:postgresql://localhost:5432/apptrail
     username: apptrail
     password: apptrail
+    username: ${DB_USERNAME:apptrail}
+    password: ${DB_PASSWORD:apptrail}
   docker:
     compose:
       lifecycle-management: start-only
