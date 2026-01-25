@@ -7,8 +7,6 @@ spring:
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/apptrail
-    username: apptrail
-    password: apptrail
     username: ${DB_USERNAME:apptrail}
     password: ${DB_PASSWORD:apptrail}
   docker:
