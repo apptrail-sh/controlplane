@@ -39,6 +39,20 @@ interface VersionHistoryRepository : JpaRepository<VersionHistoryEntity, Long> {
   ): List<VersionHistoryEntity>
 
   /**
+   * Find version history entries without a release for a specific workload ID.
+   * Used for backfilling releases when a workload's repository URL is updated.
+   */
+  @Query("""
+    SELECT vh FROM VersionHistoryEntity vh
+    JOIN vh.workloadInstance wi
+    WHERE vh.release IS NULL
+    AND wi.workload.id = :workloadId
+  """)
+  fun findByWorkloadIdAndReleaseIsNull(
+    @Param("workloadId") workloadId: Long
+  ): List<VersionHistoryEntity>
+
+  /**
    * Find version history entries for a list of workload instance IDs within a date range.
    * Optimized for workload-level metrics queries.
    */

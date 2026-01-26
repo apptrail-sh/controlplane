@@ -5,14 +5,17 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.infrastructure.gitprovider.model.ReleaseInfo
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ReleaseEntity
+import org.springframework.data.domain.PageRequest
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ReleaseRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
+import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import java.time.Instant
 
 @Service
 class ReleaseService(
   private val releaseRepository: ReleaseRepository,
   private val versionHistoryRepository: VersionHistoryRepository,
+  private val workloadRepository: WorkloadRepository,
 ) {
   private val log = LoggerFactory.getLogger(ReleaseService::class.java)
 
@@ -156,6 +159,63 @@ class ReleaseService(
         log.info("Linked pending version history {} to release {}", versionHistory.id, release.tagName)
       }
     }
+  }
+
+  /**
+   * Backfills releases for all version history entries of a specific workload.
+   * Called when a workload's repository URL is set or updated.
+   * @return The number of entries that were linked to releases
+   */
+  @Transactional
+  fun backfillReleasesForWorkload(workloadId: Long): Int {
+    val workload = workloadRepository.findById(workloadId).orElse(null) ?: return 0
+    val repositoryUrl = workload.repositoryUrl ?: return 0
+
+    val pending = versionHistoryRepository.findByWorkloadIdAndReleaseIsNull(workloadId)
+
+    var linkedCount = 0
+    for (entry in pending) {
+      val release = findReleaseWithVersionNormalization(repositoryUrl, entry.currentVersion)
+      if (release != null) {
+        entry.release = release
+        versionHistoryRepository.save(entry)
+        log.info("Backfill: linked version history {} to release {}", entry.id, release.tagName)
+        linkedCount++
+      }
+    }
+
+    if (linkedCount > 0) {
+      log.info("Backfilled {} version history entries for workload {}", linkedCount, workload.name)
+    }
+
+    return linkedCount
+  }
+
+  /**
+   * Backfills releases for all version history entries across all workloads.
+   * Used for manual admin backfill operations.
+   * @return The number of entries that were linked to releases
+   */
+  @Transactional
+  fun backfillAllReleases(): Int {
+    val pending = versionHistoryRepository.findByReleaseIsNullAndHasRepositoryUrl(
+      PageRequest.of(0, Int.MAX_VALUE)
+    )
+
+    var linkedCount = 0
+    for (entry in pending) {
+      val repositoryUrl = entry.workloadInstance.workload.repositoryUrl ?: continue
+      val release = findReleaseWithVersionNormalization(repositoryUrl, entry.currentVersion)
+      if (release != null) {
+        entry.release = release
+        versionHistoryRepository.save(entry)
+        log.info("Backfill: linked version history {} to release {}", entry.id, release.tagName)
+        linkedCount++
+      }
+    }
+
+    log.info("Backfilled {} version history entries across all workloads", linkedCount)
+    return linkedCount
   }
 
   private fun normalizeRepositoryUrl(url: String): String {

@@ -75,6 +75,7 @@ class ReleaseFetchService(
     val repositoryUrl = workload.repositoryUrl
 
     if (repositoryUrl.isNullOrBlank()) {
+      log.info("Skipping entry {} - no repository URL for workload {}", entry.id, workload.name)
       return
     }
 
@@ -83,8 +84,8 @@ class ReleaseFetchService(
     if (existingRelease != null) {
       entry.release = existingRelease
       versionHistoryRepository.save(entry)
-      log.debug("Linked version {} to existing release {} for workload {}",
-        entry.currentVersion, existingRelease.tagName, workload.name)
+      log.info("Linked version history {} (version {}) to existing release {} for workload {}",
+        entry.id, entry.currentVersion, existingRelease.tagName, workload.name)
       return
     }
 
@@ -95,18 +96,21 @@ class ReleaseFetchService(
       return
     }
 
-    log.debug("Fetching release from {} for version {}", provider.providerId, entry.currentVersion)
+    log.info("Fetching release from {} for version {} (workload: {})", provider.providerId, entry.currentVersion, workload.name)
 
     val releaseInfo = provider.fetchRelease(repositoryUrl, entry.currentVersion)
 
     if (releaseInfo != null) {
-      // Create the release record and link it
+      // Create the release record
       val release = releaseService.upsertRelease(repositoryUrl, releaseInfo)
-      entry.release = release
-      versionHistoryRepository.save(entry)
-      log.info("Successfully fetched and linked release {} for workload {}", release.tagName, workload.name)
+
+      // Link ALL pending version history entries that match this release
+      // This handles the case where multiple workload instances deployed the same version
+      releaseService.linkPendingVersionHistories(repositoryUrl, release)
+
+      log.info("Successfully fetched release {} and linked pending version histories", release.tagName)
     } else {
-      log.debug("No release found for version {} of workload {}", entry.currentVersion, workload.name)
+      log.info("No release found from provider for version {} of workload {}", entry.currentVersion, workload.name)
     }
   }
 }
