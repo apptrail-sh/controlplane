@@ -246,23 +246,22 @@ class WorkloadController(
           deploymentFailedAt = entry.deploymentFailedAt,
           detectedAt = entry.detectedAt,
           createdAt = entry.createdAt,
-          releaseFetchStatus = entry.releaseFetchStatus,
-          releaseInfo = entry.releaseInfo?.let { info ->
+          releaseInfo = entry.release?.let { release ->
             ReleaseInfoResponse(
-              provider = info.provider,
-              tagName = info.tagName,
-              name = info.name,
-              body = info.body,
-              publishedAt = info.publishedAt,
-              htmlUrl = info.htmlUrl,
-              authors = info.authors.map { author ->
+              provider = release.provider,
+              tagName = release.tagName,
+              name = release.name,
+              body = release.body,
+              publishedAt = release.publishedAt,
+              htmlUrl = release.htmlUrl,
+              authors = release.authors?.map { author ->
                 ReleaseAuthorResponse(
                   login = author.login,
                   avatarUrl = author.avatarUrl,
                 )
-              },
-              isDraft = info.isDraft,
-              isPrerelease = info.isPrerelease,
+              } ?: emptyList(),
+              isDraft = release.isDraft,
+              isPrerelease = release.isPrerelease,
             )
           },
         )
@@ -391,7 +390,6 @@ data class VersionHistoryResponse(
   val deploymentFailedAt: Instant?,
   val detectedAt: Instant,
   val createdAt: Instant?,
-  val releaseFetchStatus: String?,
   val releaseInfo: ReleaseInfoResponse?,
 )
 

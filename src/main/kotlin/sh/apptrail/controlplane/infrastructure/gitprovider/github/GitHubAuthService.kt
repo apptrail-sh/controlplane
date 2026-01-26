@@ -1,6 +1,10 @@
 package sh.apptrail.controlplane.infrastructure.gitprovider.github
 
 import io.jsonwebtoken.Jwts
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.openssl.PEMKeyPair
+import org.bouncycastle.openssl.PEMParser
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.HttpEntity
@@ -8,11 +12,10 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
+import java.io.StringReader
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.security.KeyFactory
 import java.security.PrivateKey
-import java.security.spec.PKCS8EncodedKeySpec
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -116,34 +119,39 @@ class GitHubAuthService(
   }
 
   private fun loadPrivateKey(): PrivateKey {
-    val keyBytes = when {
+    val pemContent = when {
       !properties.privateKeyBase64.isNullOrBlank() -> {
         log.info("Loading GitHub App private key from base64")
-        Base64.getDecoder().decode(properties.privateKeyBase64)
+        // Base64 decodes to PEM content (e.g., from `cat key.pem | base64`)
+        String(Base64.getDecoder().decode(properties.privateKeyBase64), Charsets.UTF_8)
       }
       !properties.privateKeyPath.isNullOrBlank() -> {
         log.info("Loading GitHub App private key from file: {}", properties.privateKeyPath)
-        val pemContent = Files.readString(Paths.get(properties.privateKeyPath))
-        parsePemKey(pemContent)
+        Files.readString(Paths.get(properties.privateKeyPath))
       }
       else -> {
         throw IllegalStateException("GitHub App private key not configured. Set either privateKeyPath or privateKeyBase64.")
       }
     }
 
-    val keySpec = PKCS8EncodedKeySpec(keyBytes)
-    val keyFactory = KeyFactory.getInstance("RSA")
-    return keyFactory.generatePrivate(keySpec)
+    return parsePemKey(pemContent)
   }
 
-  private fun parsePemKey(pemContent: String): ByteArray {
-    val base64Key = pemContent
-      .replace("-----BEGIN RSA PRIVATE KEY-----", "")
-      .replace("-----END RSA PRIVATE KEY-----", "")
-      .replace("-----BEGIN PRIVATE KEY-----", "")
-      .replace("-----END PRIVATE KEY-----", "")
-      .replace("\\s".toRegex(), "")
-    return Base64.getDecoder().decode(base64Key)
+  private fun parsePemKey(pemContent: String): PrivateKey {
+    val parser = PEMParser(StringReader(pemContent))
+    val pemObject = parser.readObject()
+      ?: throw IllegalStateException("Failed to parse PEM content")
+    parser.close()
+
+    val converter = JcaPEMKeyConverter()
+
+    return when (pemObject) {
+      // PKCS#1 format: BEGIN RSA PRIVATE KEY
+      is PEMKeyPair -> converter.getPrivateKey(pemObject.privateKeyInfo)
+      // PKCS#8 format: BEGIN PRIVATE KEY
+      is PrivateKeyInfo -> converter.getPrivateKey(pemObject)
+      else -> throw IllegalStateException("Unsupported PEM object type: ${pemObject::class.java}")
+    }
   }
 
   private data class CachedToken(val token: String, val expiresAt: Instant) {

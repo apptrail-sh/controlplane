@@ -10,7 +10,33 @@ import java.time.Instant
 interface VersionHistoryRepository : JpaRepository<VersionHistoryEntity, Long> {
   fun findByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstanceId: Long): List<VersionHistoryEntity>
   fun findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstanceId: Long): VersionHistoryEntity?
-  fun findByReleaseFetchStatus(status: String, pageable: Pageable): List<VersionHistoryEntity>
+
+  /**
+   * Find version history entries without a release that have a workload with a repository URL.
+   */
+  @Query("""
+    SELECT vh FROM VersionHistoryEntity vh
+    JOIN vh.workloadInstance wi
+    JOIN wi.workload w
+    WHERE vh.release IS NULL
+    AND w.repositoryUrl IS NOT NULL
+    AND w.repositoryUrl <> ''
+  """)
+  fun findByReleaseIsNullAndHasRepositoryUrl(pageable: Pageable): List<VersionHistoryEntity>
+
+  /**
+   * Find version history entries without a release for a specific repository URL.
+   */
+  @Query("""
+    SELECT vh FROM VersionHistoryEntity vh
+    JOIN vh.workloadInstance wi
+    JOIN wi.workload w
+    WHERE vh.release IS NULL
+    AND LOWER(w.repositoryUrl) = LOWER(:repositoryUrl)
+  """)
+  fun findByReleaseIsNullAndWorkloadInstanceWorkloadRepositoryUrl(
+    @Param("repositoryUrl") repositoryUrl: String
+  ): List<VersionHistoryEntity>
 
   /**
    * Find version history entries for a list of workload instance IDs within a date range.

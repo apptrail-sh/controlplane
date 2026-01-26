@@ -9,4 +9,5 @@ data class GitHubProperties(
   val privateKeyPath: String? = null,
   val privateKeyBase64: String? = null,
   val apiBaseUrl: String = "https://api.github.com",
+  val webhookSecret: String? = null,
 )

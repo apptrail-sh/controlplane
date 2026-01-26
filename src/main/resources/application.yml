@@ -9,6 +9,11 @@ spring:
     url: jdbc:postgresql://localhost:5432/apptrail
     username: ${DB_USERNAME:apptrail}
     password: ${DB_PASSWORD:apptrail}
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
   docker:
     compose:
       lifecycle-management: start-only
@@ -58,6 +63,7 @@ app:
       private-key-path: ${GITHUB_APP_PRIVATE_KEY_PATH:}
       private-key-base64: ${GITHUB_APP_PRIVATE_KEY_BASE64:}
       api-base-url: ${GITHUB_API_BASE_URL:https://api.github.com}
+      webhook-secret: ${GITHUB_WEBHOOK_SECRET:}
   release-fetch:
     enabled: true
     interval-ms: ${RELEASE_FETCH_INTERVAL_MS:30000}
