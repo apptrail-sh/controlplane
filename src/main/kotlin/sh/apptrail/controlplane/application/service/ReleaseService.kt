@@ -1,11 +1,11 @@
 package sh.apptrail.controlplane.application.service
 
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.infrastructure.gitprovider.model.ReleaseInfo
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ReleaseEntity
-import org.springframework.data.domain.PageRequest
+import sh.apptrail.controlplane.infrastructure.persistence.entity.RepositoryEntity
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ReleaseRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.VersionHistoryRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
@@ -24,12 +24,11 @@ class ReleaseService(
    * @return The created or updated release entity
    */
   @Transactional
-  fun upsertRelease(repositoryUrl: String, releaseInfo: ReleaseInfo): ReleaseEntity {
-    val normalizedUrl = normalizeRepositoryUrl(repositoryUrl)
-    val existing = releaseRepository.findByRepositoryUrlAndTagName(normalizedUrl, releaseInfo.tagName)
+  fun upsertRelease(repository: RepositoryEntity, releaseInfo: ReleaseInfo): ReleaseEntity {
+    val existing = releaseRepository.findByRepositoryAndTagName(repository, releaseInfo.tagName)
 
     return if (existing != null) {
-      log.debug("Updating existing release {} for {}", releaseInfo.tagName, normalizedUrl)
+      log.debug("Updating existing release {} for {}", releaseInfo.tagName, repository.url)
       existing.apply {
         name = releaseInfo.name
         body = releaseInfo.body
@@ -43,9 +42,9 @@ class ReleaseService(
       }
       releaseRepository.save(existing)
     } else {
-      log.info("Creating new release {} for {}", releaseInfo.tagName, normalizedUrl)
+      log.info("Creating new release {} for {}", releaseInfo.tagName, repository.url)
       val release = ReleaseEntity(
-        repositoryUrl = normalizedUrl,
+        repository = repository,
         tagName = releaseInfo.tagName,
         name = releaseInfo.name,
         body = releaseInfo.body,
@@ -62,19 +61,17 @@ class ReleaseService(
   }
 
   /**
-   * Finds a release by exact repository URL and tag name.
+   * Finds a release by exact repository and tag name.
    */
-  fun findRelease(repositoryUrl: String, tagName: String): ReleaseEntity? {
-    val normalizedUrl = normalizeRepositoryUrl(repositoryUrl)
-    return releaseRepository.findByRepositoryUrlAndTagName(normalizedUrl, tagName)
+  fun findRelease(repository: RepositoryEntity, tagName: String): ReleaseEntity? {
+    return releaseRepository.findByRepositoryAndTagName(repository, tagName)
   }
 
   /**
-   * Finds a release by repository URL, trying multiple tag name variants.
+   * Finds a release by repository, trying multiple tag name variants.
    * Attempts: exact version, with 'v' prefix, without 'v' prefix.
    */
-  fun findReleaseWithVersionNormalization(repositoryUrl: String, version: String): ReleaseEntity? {
-    val normalizedUrl = normalizeRepositoryUrl(repositoryUrl)
+  fun findReleaseWithVersionNormalization(repository: RepositoryEntity, version: String): ReleaseEntity? {
     val tagCandidates = listOf(
       version,
       "v$version",
@@ -82,9 +79,9 @@ class ReleaseService(
     ).distinct()
 
     for (tag in tagCandidates) {
-      val release = releaseRepository.findByRepositoryUrlAndTagName(normalizedUrl, tag)
+      val release = releaseRepository.findByRepositoryAndTagName(repository, tag)
       if (release != null) {
-        log.debug("Found release for {} with tag variant {}", normalizedUrl, tag)
+        log.debug("Found release for {} with tag variant {}", repository.url, tag)
         return release
       }
     }
@@ -119,12 +116,9 @@ class ReleaseService(
       return true
     }
 
-    val repositoryUrl = versionHistory.workloadInstance.workload.repositoryUrl
-    if (repositoryUrl.isNullOrBlank()) {
-      return false
-    }
+    val repository = versionHistory.workloadInstance.workload.repository ?: return false
 
-    val release = findReleaseWithVersionNormalization(repositoryUrl, versionHistory.currentVersion)
+    val release = findReleaseWithVersionNormalization(repository, versionHistory.currentVersion)
     if (release != null) {
       versionHistory.release = release
       versionHistoryRepository.save(versionHistory)
@@ -140,11 +134,9 @@ class ReleaseService(
    * Called after a new release is created/updated via webhook.
    */
   @Transactional
-  fun linkPendingVersionHistories(repositoryUrl: String, release: ReleaseEntity) {
-    val normalizedUrl = normalizeRepositoryUrl(repositoryUrl)
-
+  fun linkPendingVersionHistories(repository: RepositoryEntity, release: ReleaseEntity) {
     // Find all version history entries without a release that might match this release
-    val pending = versionHistoryRepository.findByReleaseIsNullAndWorkloadInstanceWorkloadRepositoryUrl(normalizedUrl)
+    val pending = versionHistoryRepository.findByReleaseIsNullAndWorkloadInstanceWorkloadRepository(repository)
 
     val tagVariants = setOf(
       release.tagName,
@@ -169,13 +161,13 @@ class ReleaseService(
   @Transactional
   fun backfillReleasesForWorkload(workloadId: Long): Int {
     val workload = workloadRepository.findById(workloadId).orElse(null) ?: return 0
-    val repositoryUrl = workload.repositoryUrl ?: return 0
+    val repository = workload.repository ?: return 0
 
     val pending = versionHistoryRepository.findByWorkloadIdAndReleaseIsNull(workloadId)
 
     var linkedCount = 0
     for (entry in pending) {
-      val release = findReleaseWithVersionNormalization(repositoryUrl, entry.currentVersion)
+      val release = findReleaseWithVersionNormalization(repository, entry.currentVersion)
       if (release != null) {
         entry.release = release
         versionHistoryRepository.save(entry)
@@ -198,14 +190,12 @@ class ReleaseService(
    */
   @Transactional
   fun backfillAllReleases(): Int {
-    val pending = versionHistoryRepository.findByReleaseIsNullAndHasRepositoryUrl(
-      PageRequest.of(0, Int.MAX_VALUE)
-    )
+    val pending = versionHistoryRepository.findAllWithoutReleaseAndHasRepository()
 
     var linkedCount = 0
     for (entry in pending) {
-      val repositoryUrl = entry.workloadInstance.workload.repositoryUrl ?: continue
-      val release = findReleaseWithVersionNormalization(repositoryUrl, entry.currentVersion)
+      val repository = entry.workloadInstance.workload.repository ?: continue
+      val release = findReleaseWithVersionNormalization(repository, entry.currentVersion)
       if (release != null) {
         entry.release = release
         versionHistoryRepository.save(entry)
@@ -216,9 +206,5 @@ class ReleaseService(
 
     log.info("Backfilled {} version history entries across all workloads", linkedCount)
     return linkedCount
-  }
-
-  private fun normalizeRepositoryUrl(url: String): String {
-    return url.removeSuffix(".git").lowercase()
   }
 }

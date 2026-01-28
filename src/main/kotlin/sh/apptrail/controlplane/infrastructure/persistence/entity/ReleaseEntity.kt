@@ -13,8 +13,9 @@ class ReleaseEntity(
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   var id: Long? = null,
 
-  @Column(name = "repository_url", nullable = false)
-  var repositoryUrl: String,
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "repository_id", nullable = false)
+  var repository: RepositoryEntity,
 
   @Column(name = "tag_name", nullable = false)
   var tagName: String,
@@ -49,4 +50,11 @@ class ReleaseEntity(
 
   @Column(name = "created_at", insertable = false, updatable = false)
   var createdAt: Instant? = null,
-)
+) {
+  /**
+   * Computed property for backwards compatibility.
+   * Returns the repository URL from the linked repository entity.
+   */
+  val repositoryUrl: String
+    get() = repository.url
+}

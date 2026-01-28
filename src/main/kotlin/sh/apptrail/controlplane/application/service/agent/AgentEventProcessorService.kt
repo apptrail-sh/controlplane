@@ -1,6 +1,6 @@
 package sh.apptrail.controlplane.application.service.agent
 
-import jakarta.transaction.Transactional
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventOutcome

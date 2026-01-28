@@ -4,7 +4,9 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import sh.apptrail.controlplane.application.service.ReleaseFetchAttemptService
 import sh.apptrail.controlplane.application.service.ReleaseService
+import sh.apptrail.controlplane.application.service.RepositoryService
 import sh.apptrail.controlplane.infrastructure.gitprovider.github.GitHubWebhookService
 
 @RestController
@@ -13,6 +15,8 @@ import sh.apptrail.controlplane.infrastructure.gitprovider.github.GitHubWebhookS
 class GitHubWebhookController(
   private val webhookService: GitHubWebhookService,
   private val releaseService: ReleaseService,
+  private val repositoryService: RepositoryService,
+  private val releaseFetchAttemptService: ReleaseFetchAttemptService,
 ) {
   private val log = LoggerFactory.getLogger(GitHubWebhookController::class.java)
 
@@ -61,11 +65,16 @@ class GitHubWebhookController(
       releasePayload.repositoryUrl,
     )
 
+    val repository = repositoryService.findOrCreate(releasePayload.repositoryUrl)
+
     // Upsert the release
-    val release = releaseService.upsertRelease(releasePayload.repositoryUrl, releasePayload.releaseInfo)
+    val release = releaseService.upsertRelease(repository, releasePayload.releaseInfo)
 
     // Link any pending version history entries
-    releaseService.linkPendingVersionHistories(releasePayload.repositoryUrl, release)
+    releaseService.linkPendingVersionHistories(repository, release)
+
+    // Clear any failed fetch attempts for this version (webhook provides definitive release info)
+    releaseFetchAttemptService.clearAttempt(repository, releasePayload.releaseInfo.tagName)
 
     return ResponseEntity.ok(
       WebhookResponse(
