@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param
 import sh.apptrail.controlplane.infrastructure.persistence.entity.VersionHistoryEntity
 import java.time.Instant
 
+@Suppress("FunctionName")
 interface VersionHistoryRepository : JpaRepository<VersionHistoryEntity, Long> {
   fun findByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstanceId: Long): List<VersionHistoryEntity>
   fun findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstanceId: Long): VersionHistoryEntity?
