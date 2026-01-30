@@ -12,6 +12,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
+import sh.apptrail.controlplane.application.model.infrastructure.ResourceEventPayload
+import sh.apptrail.controlplane.application.service.infrastructure.ResourceEventProcessorService
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 
@@ -21,10 +23,16 @@ import tools.jackson.databind.json.JsonMapper
 class PubSubConfig(
   private val properties: PubSubProperties,
   private val ingester: GCPPubSubAgentEventIngester,
+  private val resourceEventProcessor: ResourceEventProcessorService,
   private val jsonMapper: JsonMapper,
 ) {
   private val log = LoggerFactory.getLogger(PubSubConfig::class.java)
   private var subscriber: Subscriber? = null
+
+  companion object {
+    private const val MESSAGE_TYPE_ATTRIBUTE = "message_type"
+    private const val RESOURCE_EVENT_TYPE = "resource_event"
+  }
 
   @PostConstruct
   fun subscribeToAgentEvents() {
@@ -39,12 +47,15 @@ class PubSubConfig(
 
     val receiver = MessageReceiver { message: PubsubMessage, consumer: AckReplyConsumer ->
       val payload = message.data.toStringUtf8()
+      val messageType = message.attributesMap[MESSAGE_TYPE_ATTRIBUTE]
+
       try {
-        log.info("Received Pub/Sub message payload: {}", payload)
-        val eventPayload = jsonMapper.readValue(payload, AgentEventPayload::class.java)
-        ingester.ingest(eventPayload)
+        if (messageType == RESOURCE_EVENT_TYPE) {
+          processResourceEvent(payload)
+        } else {
+          processWorkloadEvent(payload)
+        }
         consumer.ack()
-        log.debug("Processed Pub/Sub message: {}", eventPayload.eventId)
       } catch (e: JacksonException) {
         // Ack messages with invalid format to prevent infinite redelivery
         log.error("Invalid message format, acknowledging to discard. Payload: {}. Error: {}", payload, e.message)
@@ -60,6 +71,21 @@ class PubSubConfig(
     subscriber?.startAsync()?.awaitRunning()
 
     log.info("Pub/Sub subscription active: {}", properties.subscription)
+  }
+
+  private fun processWorkloadEvent(payload: String) {
+    log.debug("Processing workload event from Pub/Sub")
+    val eventPayload = jsonMapper.readValue(payload, AgentEventPayload::class.java)
+    ingester.ingest(eventPayload)
+    log.debug("Processed workload event: {}", eventPayload.eventId)
+  }
+
+  private fun processResourceEvent(payload: String) {
+    log.debug("Processing resource event from Pub/Sub")
+    val eventPayload = jsonMapper.readValue(payload, ResourceEventPayload::class.java)
+    resourceEventProcessor.processEvent(eventPayload)
+    log.debug("Processed resource event: {} {}/{}",
+      eventPayload.resourceType, eventPayload.resource.namespace ?: "", eventPayload.resource.name)
   }
 
   @PreDestroy

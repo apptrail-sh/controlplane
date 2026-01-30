@@ -17,4 +17,16 @@ interface WorkloadInstanceRepository : JpaRepository<WorkloadInstanceEntity, Lon
   fun findByWorkload(workload: WorkloadEntity): List<WorkloadInstanceEntity>
 
   fun findByWorkloadId(workloadId: Long): List<WorkloadInstanceEntity>
+
+  @org.springframework.data.jpa.repository.Query("""
+    SELECT wi FROM WorkloadInstanceEntity wi
+    WHERE wi.workload.name = :workloadName
+    AND wi.cluster.id = :clusterId
+    AND wi.namespace = :namespace
+  """)
+  fun findByWorkloadNameAndClusterIdAndNamespace(
+    workloadName: String,
+    clusterId: Long,
+    namespace: String
+  ): WorkloadInstanceEntity?
 }
