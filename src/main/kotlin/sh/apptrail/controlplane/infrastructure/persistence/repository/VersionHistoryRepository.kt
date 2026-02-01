@@ -12,6 +12,24 @@ interface VersionHistoryRepository : JpaRepository<VersionHistoryEntity, Long> {
   fun findTopByWorkloadInstance_IdOrderByDetectedAtDesc(workloadInstanceId: Long): VersionHistoryEntity?
 
   /**
+   * Find version history by unique constraint fields.
+   */
+  @Query(
+    value = """
+      SELECT * FROM version_history
+      WHERE workload_instance_id = :workloadInstanceId
+      AND current_version = :currentVersion
+      AND COALESCE(previous_version, '') = COALESCE(:previousVersion, '')
+    """,
+    nativeQuery = true
+  )
+  fun findByWorkloadInstanceIdAndCurrentVersionAndPreviousVersion(
+    @Param("workloadInstanceId") workloadInstanceId: Long,
+    @Param("currentVersion") currentVersion: String,
+    @Param("previousVersion") previousVersion: String?,
+  ): VersionHistoryEntity?
+
+  /**
    * Find version history entries without a release that:
    * - Have a workload with a repository
    * - Don't have a recent failed fetch attempt (within cutoff time)

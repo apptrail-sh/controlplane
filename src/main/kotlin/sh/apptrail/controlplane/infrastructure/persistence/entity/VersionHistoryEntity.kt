@@ -38,6 +38,9 @@ class VersionHistoryEntity(
   @Column(name = "deployment_failed_at")
   var deploymentFailedAt: Instant? = null,
 
+  @Column(name = "last_notified_phase")
+  var lastNotifiedPhase: String? = null,
+
   @Column(name = "detected_at", nullable = false)
   var detectedAt: Instant = Instant.EPOCH,
 

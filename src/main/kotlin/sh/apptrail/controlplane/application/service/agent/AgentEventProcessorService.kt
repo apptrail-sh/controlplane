@@ -1,7 +1,9 @@
 package sh.apptrail.controlplane.application.service.agent
 
-import org.springframework.transaction.annotation.Transactional
+import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
 import sh.apptrail.controlplane.application.model.agent.AgentEventOutcome
 import sh.apptrail.controlplane.application.model.agent.DeploymentPhase
@@ -25,6 +27,8 @@ class AgentEventProcessorService(
   private val releaseFetchService: ReleaseFetchService?,
   private val notificationEventPublisher: NotificationEventPublisher?,
 ) {
+
+  private val log = LoggerFactory.getLogger(AgentEventProcessorService::class.java)
 
   companion object {
     private const val STATUS_SUCCESS = "success"
@@ -81,6 +85,7 @@ class AgentEventProcessorService(
       val updated = updateExistingVersionHistory(latest, eventPayload, phaseValue, statusValue, detectedAt)
       if (updated) {
         publishNotificationIfNeeded(
+          versionHistory = latest,
           eventPayload = eventPayload,
           workload = workload,
           workloadInstance = workloadInstance,
@@ -169,11 +174,36 @@ class AgentEventProcessorService(
       detectedAt = detectedAt,
     )
 
-    val savedVersionHistory = versionHistoryRepository.save(versionHistory)
+    val savedVersionHistory = try {
+      versionHistoryRepository.save(versionHistory)
+    } catch (e: DataIntegrityViolationException) {
+      // Handle race condition: another pod created this version history concurrently
+      log.debug("Version history already exists, fetching existing record: {}", e.message)
+      val existing = versionHistoryRepository.findByWorkloadInstanceIdAndCurrentVersionAndPreviousVersion(
+        workloadInstance.id!!,
+        currentVersion,
+        previousVersion,
+      )
+      if (existing != null) {
+        // Update existing record with new phase/status if needed
+        updateExistingVersionHistory(existing, eventPayload, phaseValue, statusValue, detectedAt)
+        publishNotificationIfNeeded(
+          versionHistory = existing,
+          eventPayload = eventPayload,
+          workload = workload,
+          workloadInstance = workloadInstance,
+          currentVersion = currentVersion,
+          previousVersion = previousVersion,
+          durationSeconds = existing.deploymentDurationSeconds,
+        )
+      }
+      return
+    }
 
     releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
 
     publishNotificationIfNeeded(
+      versionHistory = savedVersionHistory,
       eventPayload = eventPayload,
       workload = workload,
       workloadInstance = workloadInstance,
@@ -248,6 +278,7 @@ class AgentEventProcessorService(
   // --- Notification Methods ---
 
   private fun publishNotificationIfNeeded(
+    versionHistory: VersionHistoryEntity,
     eventPayload: AgentEvent,
     workload: WorkloadEntity,
     workloadInstance: WorkloadInstanceEntity,
@@ -256,6 +287,14 @@ class AgentEventProcessorService(
     durationSeconds: Int?,
   ) {
     if (notificationEventPublisher == null) {
+      return
+    }
+
+    val phaseValue = eventPayload.phase?.name?.lowercase() ?: return
+
+    // Check if we've already notified for this phase (idempotency)
+    if (versionHistory.lastNotifiedPhase == phaseValue) {
+      log.debug("Skipping duplicate notification for phase: {}", phaseValue)
       return
     }
 
@@ -278,6 +317,10 @@ class AgentEventProcessorService(
     )
 
     notificationEventPublisher.publish(notification)
+
+    // Update lastNotifiedPhase after successful publish
+    versionHistory.lastNotifiedPhase = phaseValue
+    versionHistoryRepository.save(versionHistory)
   }
 
   private fun determineNotificationType(eventPayload: AgentEvent): NotificationType? {
