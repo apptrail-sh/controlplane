@@ -1,40 +1,56 @@
 # AppTrail Control Plane
 
-Central API and data repository for tracking Kubernetes workload versions across clusters.
+Central API and data repository for the AppTrail application-centric observability platform. Tracks Kubernetes workload versions, correlates infrastructure context (pods, nodes), and provides real-time visibility across clusters.
 
 ## What it does
 
-AppTrail Control Plane receives workload events from Kubernetes controllers, stores version history in PostgreSQL, and
-provides a REST API for querying workload data. It aggregates information from multiple clusters and environments into a
-single source of truth.
+AppTrail Control Plane receives events from Kubernetes agents, stores workload and infrastructure state in PostgreSQL, and provides a REST API for querying data. It aggregates information from multiple clusters into a single source of truth, with workloads as the primary focus and infrastructure (pods, nodes) providing context.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    APPLICATION LAYER (Core)                 │
+│  Workloads → Versions → Deployments → Releases → DORA      │
+├─────────────────────────────────────────────────────────────┤
+│                 INFRASTRUCTURE CONTEXT                      │
+│  Pods → Nodes → Resource Pressure → Scheduling Context      │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Features
 
+### Core (Application-Centric)
+
 * **Multi-cluster tracking** - Track workloads across staging, production, and other environments
 * **Version history** - Complete audit trail of all version changes with timestamps
-* **REST API** - Query workloads, clusters, and recent changes via HTTP endpoints
-* **Event ingestion** - Receive workload events from AppTrail controllers via HTTP or GCP Pub/Sub
-* **Flexible topology** - Supports namespace-per-environment or cluster-per-environment setups
-* **Kubernetes-native** - Uses standard `app.kubernetes.io/version`, `app.kubernetes.io/name` and
-  `app.kubernetes.io/part-of` labels
-* **Deployment metrics** - Track deployment frequency, lead time and change failure rate over time with built-in metrics
-* **Prometheus alerting** - Integrate with Prometheus to display alert status alongside workloads
-* **Quick links** - Configurable templated URLs for GCP logs, Grafana dashboards, and kubectl commands
-* **Team scorecards** - Analytics and metrics per team
-* **Cell/shard support** - Track progressive rollouts across cells or shards within an environment
+* **Deployment metrics** - Track deployment frequency, lead time, and change failure rate (DORA)
+* **Release correlation** - Link versions to Git releases with changelog and author information
+* **Team scorecards** - Analytics and metrics aggregated per team
+* **Cell/shard support** - Track progressive rollouts across cells or shards
+
+### Infrastructure Context
+
+* **Pod tracking** - See pods backing each workload with status, restarts, and container info
+* **Node correlation** - Understand where pods are scheduled and node resource pressure
+* **Workload ↔ Pod ↔ Node correlation** - Answer "why is my app unhealthy?" with infrastructure context
+* **Real-time updates** - SSE streaming for live infrastructure changes
+
+### Integrations
+
+* **Prometheus alerting** - Display firing alerts alongside workloads
+* **GitHub releases** - Fetch release notes and authors from GitHub
+* **Slack notifications** - Subscribe to deployment events per team/environment
+* **Quick links** - Configurable URLs for logs, dashboards, and kubectl commands
 
 ### Roadmap
 
-* **Configurable notifications** - Subscribe to version changes and receive alerts via Slack in channels or direct
-  messages
-* **Deployment tracing** - Trace deployments back to Git commits and PRs for GitOps workflows - GitHub PR integration
-* **Promotion reminders** - Get notified when a new version is available in staging but not yet promoted to production,
-  configurable reminders per team or workload
+* **Deep links** - Direct links to Grafana, Loki, and Jaeger for each workload
+* **Promotion reminders** - Notifications when staging versions aren't promoted to production
+* **Deployment tracing** - Trace deployments back to Git commits and PRs
 
 ## Prerequisites
 
 - Java 21
-- Gradle (or use the included wrapper `./gradlew`)
+- Gradle (or use `./gradlew`)
 - Docker (for PostgreSQL via Docker Compose)
 
 ## Quick Start
@@ -57,7 +73,7 @@ The server starts on port **3000** by default.
 
 ## Configuration
 
-Configuration is managed via environment variables. The following variables are available:
+Configuration is managed via environment variables.
 
 ### Database
 
@@ -108,41 +124,44 @@ Configuration is managed via environment variables. The following variables are 
 
 ## Architecture
 
-Architecture overview:
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
+
+### High-Level Structure
 
 ```
 src/main/kotlin/sh/apptrail/controlplane/
+├── domain/           # Core business entities and domain logic
 ├── application/      # Use cases and service layer
-├── infrastructure/   # External adapters (persistence, HTTP clients, notifications)
+├── infrastructure/   # External adapters (persistence, HTTP, notifications)
 └── web/              # REST API controllers and DTOs
 ```
 
-**Application** (`application/`) - Business logic and orchestration. Defines use cases and service interfaces.
+### Data Model
 
-**Infrastructure** (`infrastructure/`) - External adapters including:
+```
+Cluster
+└── Node (infrastructure context)
+    └── Pod → WorkloadInstance (correlation)
 
-- `persistence/` - JPA repositories and database adapters
-- `ingress/` - HTTP and Pub/Sub event ingestion from agents
-- `notification/` - Slack webhook integrations
-- `config/` - Spring configuration
-
-**Web** (`web/`) - REST API layer with controllers, DTOs, and exception handling.
+Workload (logical entity: name, kind, team)
+└── WorkloadInstance (per cluster/namespace)
+    ├── VersionHistory (timeline of deployments)
+    │   └── Release (Git metadata)
+    └── Pod[] (infrastructure context)
+        └── Node
+```
 
 ## Database Migrations
 
-Migrations are managed by Flyway and located in:
+Migrations are managed by Flyway in `src/main/resources/db/migration/`.
 
-```
-src/main/resources/db/migration/
-```
-
-### Migration Naming Convention
+### Naming Convention
 
 ```
 V<timestamp>__<description>.sql
 ```
 
-Example: `V202501251030__add_users_table.sql`
+Example: `V20260129120000__create_pods_table.sql`
 
 ### Creating a New Migration
 
@@ -150,12 +169,49 @@ Example: `V202501251030__add_users_table.sql`
 touch src/main/resources/db/migration/V$(date +%Y%m%d%H%M%S)__description.sql
 ```
 
-Migrations run automatically on application startup.
+Migrations run automatically on startup.
+
+## API Endpoints
+
+### Workloads (Core)
+
+```
+GET  /api/v1/workloads              - List all workloads with instances
+GET  /api/v1/workloads/:id          - Get workload details
+PATCH /api/v1/workloads/:id         - Update workload metadata
+GET  /api/v1/workloads/:id/history  - Get version history
+GET  /api/v1/workloads/:id/metrics  - Get deployment metrics
+```
+
+### Infrastructure
+
+```
+GET  /api/v1/clusters/:id/nodes              - List nodes in cluster
+GET  /api/v1/clusters/:id/nodes/:name        - Get node details
+GET  /api/v1/clusters/:id/nodes/:name/pods   - Get pods on node
+GET  /api/v1/workload-instances/:id/pods     - Get pods for workload instance
+GET  /api/v1/clusters/:id/infrastructure/stream - SSE stream for updates
+```
+
+### Other
+
+```
+GET  /api/v1/clusters      - List all clusters
+GET  /api/v1/teams         - List all teams
+GET  /api/v1/environments  - List all environments
+GET  /api/v1/alerts        - Get alert overview
+```
+
+### Ingestion
+
+```
+POST /ingest/v1/agent/events       - Receive single event from agent
+POST /ingest/v1/agent/events/batch - Receive batched events from agent
+```
 
 ## Testing
 
 ```bash
-# Run all tests
 ./gradlew test
 ```
 
@@ -163,23 +219,11 @@ Migrations run automatically on application startup.
 - Test files: `*Tests.kt` in `src/test/kotlin`
 - Tests use the same package structure as main source code
 
-## API Endpoints
-
-The REST API provides the following main endpoints:
-
-```
-GET  /api/v1/workloads           - List all workloads
-GET  /api/v1/workloads/:id       - Get workload details
-GET  /api/v1/workloads/:id/history - Get version history
-GET  /api/v1/clusters            - List all clusters
-POST /api/v1/events              - Receive events from agents
-```
-
 ## Development
 
 ### Local Dependencies
 
-The `compose.yaml` file provides local development dependencies:
+The `compose.yaml` file provides:
 
 - PostgreSQL on port 5432
 - Grafana LGTM stack (optional) on ports 3000, 4317, 4318
@@ -188,3 +232,4 @@ The `compose.yaml` file provides local development dependencies:
 
 - Kotlin 2.x with 2-space indentation
 - Follow IntelliJ IDEA Kotlin defaults
+- Package naming: lowercase (e.g., `sh.apptrail.controlplane`)
