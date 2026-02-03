@@ -53,9 +53,10 @@ class NodeService(
     node.deletedAt = null
 
     val saved = nodeRepository.save(node)
-    log.info("Node {} in cluster {} (event: {})",
-      if (isNew) "created" else "updated",
-      nodeName, cluster.name, event.eventKind)
+    log.info(
+      "Node {} {} in cluster {} (event: {})",
+      nodeName, if (isNew) "created" else "updated", cluster.name, event.eventKind
+    )
 
     broadcaster.broadcast(InfrastructureEvent(
       type = if (isNew) InfrastructureEventType.NODE_CREATED else InfrastructureEventType.NODE_UPDATED,

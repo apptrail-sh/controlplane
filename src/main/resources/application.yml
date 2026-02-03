@@ -91,6 +91,14 @@ app:
       cache:
         enabled: true
         ttl-seconds: 30
+  cleanup:
+    cluster-status-check-interval-ms: ${CLEANUP_STATUS_CHECK_INTERVAL_MS:300000}
+    cluster-offline-threshold-minutes: ${CLEANUP_OFFLINE_THRESHOLD_MINUTES:15}
+    stale-cleanup-cron: ${CLEANUP_STALE_CRON:0 0 4 * * ?}
+    stale-cluster-offline-days: ${CLEANUP_STALE_OFFLINE_DAYS:7}
+    hard-delete-cron: ${CLEANUP_HARD_DELETE_CRON:0 0 3 * * ?}
+    hard-delete-retention-days: ${CLEANUP_HARD_DELETE_RETENTION_DAYS:30}
+    heartbeat-retention-days: ${CLEANUP_HEARTBEAT_RETENTION_DAYS:7}
 
 server:
   port: 3000

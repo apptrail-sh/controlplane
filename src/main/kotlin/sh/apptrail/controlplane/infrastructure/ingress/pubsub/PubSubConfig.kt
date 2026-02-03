@@ -12,7 +12,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
+import sh.apptrail.controlplane.application.model.heartbeat.ClusterHeartbeatPayload
 import sh.apptrail.controlplane.application.model.infrastructure.ResourceEventPayload
+import sh.apptrail.controlplane.application.service.cleanup.ClusterHeartbeatService
 import sh.apptrail.controlplane.application.service.infrastructure.ResourceEventProcessorService
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
@@ -24,6 +26,7 @@ class PubSubConfig(
   private val properties: PubSubProperties,
   private val ingester: GCPPubSubAgentEventIngester,
   private val resourceEventProcessor: ResourceEventProcessorService,
+  private val clusterHeartbeatService: ClusterHeartbeatService,
   private val jsonMapper: JsonMapper,
 ) {
   private val log = LoggerFactory.getLogger(PubSubConfig::class.java)
@@ -32,6 +35,7 @@ class PubSubConfig(
   companion object {
     private const val MESSAGE_TYPE_ATTRIBUTE = "message_type"
     private const val RESOURCE_EVENT_TYPE = "resource_event"
+    private const val HEARTBEAT_TYPE = "heartbeat"
   }
 
   @PostConstruct
@@ -52,6 +56,8 @@ class PubSubConfig(
       try {
         if (messageType == RESOURCE_EVENT_TYPE) {
           processResourceEvent(payload)
+        } else if (messageType == HEARTBEAT_TYPE) {
+          processHeartbeatEvent(payload)
         } else {
           processWorkloadEvent(payload)
         }
@@ -86,6 +92,14 @@ class PubSubConfig(
     resourceEventProcessor.processEvent(eventPayload)
     log.debug("Processed resource event: {} {}/{}",
       eventPayload.resourceType, eventPayload.resource.namespace ?: "", eventPayload.resource.name)
+  }
+
+  private fun processHeartbeatEvent(payload: String) {
+    log.debug("Processing heartbeat event from Pub/Sub")
+    val heartbeatPayload = jsonMapper.readValue(payload, ClusterHeartbeatPayload::class.java)
+    clusterHeartbeatService.processHeartbeat(heartbeatPayload)
+    log.debug("Processed heartbeat event: {} from cluster {}",
+      heartbeatPayload.eventId, heartbeatPayload.source.clusterId)
   }
 
   @PreDestroy

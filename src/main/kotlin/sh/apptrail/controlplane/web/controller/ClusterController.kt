@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
+import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterStatus
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
 import java.time.Instant
 
@@ -22,6 +23,8 @@ class ClusterController(
         id = cluster.id ?: 0,
         name = cluster.name,
         alias = clusterTopologyResolver.resolveClusterAlias(cluster.name),
+        status = cluster.status,
+        lastHeartbeatAt = cluster.lastHeartbeatAt,
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )
@@ -38,6 +41,8 @@ class ClusterController(
         id = cluster.id ?: 0,
         name = cluster.name,
         alias = clusterTopologyResolver.resolveClusterAlias(cluster.name),
+        status = cluster.status,
+        lastHeartbeatAt = cluster.lastHeartbeatAt,
         createdAt = cluster.createdAt,
         updatedAt = cluster.updatedAt,
       )
@@ -49,6 +54,8 @@ data class ClusterDetailResponse(
   val id: Long,
   val name: String,
   val alias: String?,
+  val status: ClusterStatus,
+  val lastHeartbeatAt: Instant?,
   val createdAt: Instant?,
   val updatedAt: Instant?,
 )
