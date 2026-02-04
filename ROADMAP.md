@@ -5,21 +5,32 @@ Future features and improvements planned for the Control Plane.
 ## Planned Features
 
 ### Promotion reminders and policies
+
 Notifications when versions aren't promoted to higher environments within a configurable time window.
 Environments can be configured with promotion deadlines.
 
-
-
-### Deployment Tracing
-Trace deployments back to Git commits and PRs to answer "what changed in this release?"
 ### Slack Integration
+
 Send deployment notifications and alerts to Slack channels.
+
+\+ User mapping for personalized notifications.
+
 ### Workload subscription
+
 Allow users to subscribe to specific workloads for targeted notifications and updates.
 
-
 ## Ideas (not planned yet)
+
+### Deployment Tracing / Version summaries with IA
+
+Trace deployments back to Git commits and PRs to answer "what changed in this release?"
+
+\+ Generate human-readable summaries of version changes using AI.
+
+\+ Highlight key changes, bug fixes, and new features.
+
 ### Infrastructure Improvements
+
 #### Real-Time Updates (SSE)
 
 Server-Sent Events for pushing infrastructure changes to the frontend.
