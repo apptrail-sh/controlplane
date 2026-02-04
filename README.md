@@ -4,12 +4,15 @@ Central API and data repository for the AppTrail application-centric observabili
 
 ## What it does
 
-AppTrail Control Plane receives events from Kubernetes agents, stores workload and infrastructure state in PostgreSQL, and provides a REST API for querying data. It aggregates information from multiple clusters into a single source of truth, with workloads as the primary focus and infrastructure (pods, nodes) providing context.
+AppTrail Control Plane receives events from the AppTrail agents running in Kubernetes, stores workload and
+infrastructure state in PostgreSQL, and provides a REST API for querying data. It aggregates information from multiple
+clusters into a single source of truth, with workloads as the primary focus and infrastructure (pods, nodes) providing
+context.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    APPLICATION LAYER (Core)                 │
-│  Workloads → Versions → Deployments → Releases → DORA      │
+│  Workloads → Versions → Deployments → Releases → DORA       │
 ├─────────────────────────────────────────────────────────────┤
 │                 INFRASTRUCTURE CONTEXT                      │
 │  Pods → Nodes → Resource Pressure → Scheduling Context      │
@@ -40,12 +43,6 @@ AppTrail Control Plane receives events from Kubernetes agents, stores workload a
 * **GitHub releases** - Fetch release notes and authors from GitHub
 * **Slack notifications** - Subscribe to deployment events per team/environment
 * **Quick links** - Configurable URLs for logs, dashboards, and kubectl commands
-
-### Roadmap
-
-* **Deep links** - Direct links to Grafana, Loki, and Jaeger for each workload
-* **Promotion reminders** - Notifications when staging versions aren't promoted to production
-* **Deployment tracing** - Trace deployments back to Git commits and PRs
 
 ## Prerequisites
 
@@ -122,21 +119,112 @@ Configuration is managed via environment variables.
 |-----------------------------|------------------------------------------------|---------|
 | `RELEASE_FETCH_INTERVAL_MS` | Interval for fetching release info from GitHub | `30000` |
 
+### Cluster Topology
+
+Define environments, cells, and cluster mappings to enable multi-cluster tracking and progressive rollouts.
+
+#### Environments
+
+Environments represent deployment stages (dev, staging, production). The `order` field controls display ordering in the
+UI and the expected promotion sequence.
+
+```yaml
+app:
+  clusters:
+    environments:
+      - name: development
+        order: 0
+      - name: staging
+        order: 1
+      - name: production
+        order: 2
+```
+
+#### Cells
+
+Cells enable progressive rollouts within an environment. Define cells inside each environment:
+
+```yaml
+app:
+  clusters:
+    environments:
+      - name: production
+        order: 2
+        cells:
+          - name: shard01
+            order: 0
+            alias: prd.shard01
+          - name: shard02
+            order: 1
+            alias: prd.shard02
+          - name: shard03
+            order: 2
+            alias: prd.shard03
+```
+
+Cells have:
+- `name` - Identifier referenced by cluster definitions
+- `order` - Controls rollout order (lower = earlier; Equal orders are allowed and mean simultaneous rollout)
+- `alias` - Display name (convention: `abbrev_env.shard_name`, e.g., `prd.shard01`, `stg.shard01`)
+
+#### Cluster Definitions
+
+Map agent cluster IDs to environments and cells:
+
+```yaml
+app:
+  clusters:
+    definitions:
+      prod-gke-us-east1:
+        environment: production
+        cell: shard01
+        alias: "prd.shard01"
+
+      prod-gke-us-west1:
+        environment: production
+        cell: shard02
+```
+
+The cluster ID (e.g., `prod-gke-us-east1`) must match the `--cluster-id` flag or auto-detected ID from the agent.
+
+#### Namespace Overrides
+
+For multi-tenant clusters, override environment or cell per namespace:
+
+```yaml
+app:
+  clusters:
+    definitions:
+      shared-cluster:
+        environment: development
+        namespaces:
+          staging-apps:
+            environment: staging
+            cell: stg01
+            alias: "stg.shard01"
+          prod-apps:
+            environment: production
+            cell: shard01
+            alias: "prd.shard01"
+```
+
+#### Resolution Order
+
+Environment resolution:
+1. Namespace-level `environment` override (if defined)
+2. Cluster-level `environment`
+3. `"unknown"` if cluster not in definitions
+
+Cell resolution:
+1. Namespace-level `cell` override (if defined)
+2. Cluster-level `cell`
+3. `null` (cell is optional)
+
 ## Architecture
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed architecture documentation.
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for architecture documentation.
 
-### High-Level Structure
-
-```
-src/main/kotlin/sh/apptrail/controlplane/
-├── domain/           # Core business entities and domain logic
-├── application/      # Use cases and service layer
-├── infrastructure/   # External adapters (persistence, HTTP, notifications)
-└── web/              # REST API controllers and DTOs
-```
-
-### Data Model
+## Data Model
 
 ```
 Cluster

@@ -206,27 +206,6 @@ Agent Event
 - Pod scheduled to node
 - Container status changes (planned)
 
-## Real-Time Updates (SSE) (WIP)
-
-Server-Sent Events for pushing infrastructure changes to the frontend.
-
-```
-Frontend                          Control Plane
-   │                                    │
-   │  GET /clusters/{id}/infrastructure/stream
-   │ ──────────────────────────────────►│
-   │                                    │
-   │  SSE: event: pod                   │
-   │  data: {"type":"pod","action":"updated",...}
-   │ ◄──────────────────────────────────│
-   │                                    │
-   │  SSE: event: node                  │
-   │  data: {"type":"node","action":"created",...}
-   │ ◄──────────────────────────────────│
-```
-
-Implementation uses Spring WebFlux `Flux<ServerSentEvent>`.
-
 ## Scaling Considerations
 
 ### Current Design
@@ -234,7 +213,7 @@ Implementation uses Spring WebFlux `Flux<ServerSentEvent>`.
 - Single PostgreSQL instance with read replicas for queries
 - Event batching from agents (2-second windows, max 100 events)
 - Materialized views for expensive aggregations
-- Redis caching for hot data (cluster topology, node/pod counts) (soon)
+- Redis caching for hot data (cluster topology, node/pod counts)
 
 ### Database Optimization
 
@@ -251,13 +230,6 @@ GROUP BY cluster_id;
 -- Refresh every 5 minutes
 REFRESH MATERIALIZED VIEW CONCURRENTLY cluster_pod_counts;
 ```
-
-### Future Scaling (1000+ nodes) (TBD)
-
-- Sharded agent watching by namespace
-- Multiple worker goroutines for event processing 
-- Kafka/Pub/Sub for event streaming
-- Time-series database for high-volume metrics
 
 ## Key Patterns
 
