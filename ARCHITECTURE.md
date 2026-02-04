@@ -18,24 +18,27 @@ AppTrail is an **application-centric** observability platform. The core focus is
 
 ## Architecture
 
-The codebase follows
+The codebase follows a three-layer architecture:
 
 ```
 src/main/kotlin/sh/apptrail/controlplane/
-├── domain/           # Core business entities and domain logic
 ├── application/      # Use cases, services, and application logic
 ├── infrastructure/   # External adapters (DB, HTTP clients, notifications)
 └── web/              # REST API layer (controllers, DTOs)
 ```
 
-### Domain Layer
+### Application Layer
 
-Pure business logic with no external dependencies.
+Orchestrates use cases and business logic.
 
 ```
-domain/
-├── model/            # Core entities: Workload, Cluster, DeploymentPhase, etc.
-└── event/            # Domain events
+application/
+├── model/            # Application-specific models (DTOs between layers)
+└── service/          # Business services
+    ├── agent/        # AgentEventEntityResolver, AgentEventProcessorService
+    ├── cleanup/      # ClusterHeartbeatService, ClusterStatusService, HardDeleteCleanupService, StaleResourceCleanupService
+    ├── infrastructure/  # InfrastructureEventBroadcaster, NodeService, PodService, ResourceEventProcessorService
+    └── (root)        # AlertService, AnalyticsService, ReleaseService, WorkloadService, etc.
 ```
 
 Key domain concepts:
@@ -44,26 +47,12 @@ Key domain concepts:
 - **VersionHistory**: Timeline of version changes with deployment phases
 - **DeploymentPhase**: `PENDING` → `PROGRESSING` → `COMPLETED` | `FAILED`
 
-### Application Layer
-
-Orchestrates use cases and business logic.
-
-```
-application/
-├── service/          # Business services
-│   ├── agent/        # AgentEventProcessorService - event ingestion
-│   ├── workload/     # WorkloadService - workload management
-│   ├── analytics/    # AnalyticsService, TeamScorecardService
-│   ├── release/      # ReleaseService, ReleaseFetchService
-│   └── notification/ # NotificationService
-└── model/            # Application-specific models (DTOs between layers)
-```
-
 Key services:
 - **AgentEventProcessorService**: Processes incoming events, resolves entities, manages state
 - **ReleaseService**: Fetches and correlates Git releases with versions
 - **AlertService**: Queries Prometheus for firing alerts
 - **InstanceMetricsService**: Queries Prometheus for workload metrics
+- **NotificationService**: Sends Slack notifications for deployment events
 
 ### Infrastructure Layer
 
@@ -79,7 +68,7 @@ infrastructure/
 │   └── pubsub/       # GCP Pub/Sub ingestion
 ├── alerting/         # Prometheus integration
 ├── gitprovider/      # GitHub API client
-├── notification/     # Slack webhook client
+├── notification/     # NotificationService, Slack webhook client
 └── config/           # Spring configuration classes
 ```
 
@@ -90,8 +79,7 @@ REST API controllers and DTOs.
 ```
 web/
 ├── controller/       # REST controllers
-├── dto/              # Request/response objects
-└── advice/           # Exception handlers
+└── dto/              # Request/response objects
 ```
 
 ## Data Model
@@ -109,6 +97,7 @@ workloads (1:N) ──→ workload_instances
          └──→ repositories (N:1)
 
 repositories (1:N) ──→ releases
+             └──→ release_fetch_attempts (1:N)
 ```
 
 ### Core Tables
@@ -160,6 +149,13 @@ pods (
 )
 ```
 
+**release_fetch_attempts** - Tracks GitHub API fetch attempts to prevent redundant calls
+```sql
+release_fetch_attempts (
+    id, repository_id, version, attempted_at
+)
+```
+
 Key correlations:
 - `pods.workload_instance_id` → Links pod to its owning workload
 - `pods.node_id` → Links pod to its scheduled node
@@ -204,11 +200,11 @@ Agent Event
 - Version changes detected via `app.kubernetes.io/version` label
 - Deployment phase transitions: `PENDING` → `PROGRESSING` → `COMPLETED`/`FAILED`
 
-**Infrastructure Events** (planned):
+**Infrastructure Events**:
 - Node created/updated/deleted
 - Pod created/updated/deleted
 - Pod scheduled to node
-- Container status changes
+- Container status changes (planned)
 
 ## Real-Time Updates (SSE) (WIP)
 
@@ -256,7 +252,7 @@ GROUP BY cluster_id;
 REFRESH MATERIALIZED VIEW CONCURRENTLY cluster_pod_counts;
 ```
 
-### Future Scaling (1000+ nodes) (TDB)
+### Future Scaling (1000+ nodes) (TBD)
 
 - Sharded agent watching by namespace
 - Multiple worker goroutines for event processing 
