@@ -2,7 +2,11 @@ package sh.apptrail.controlplane.web.controller
 
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import sh.apptrail.controlplane.application.service.infrastructure.NodeMetricsResponse
+import sh.apptrail.controlplane.application.service.infrastructure.NodeMetricsService
 import sh.apptrail.controlplane.application.service.infrastructure.NodeService
+import sh.apptrail.controlplane.application.service.infrastructure.PodMetricsResponse
+import sh.apptrail.controlplane.application.service.infrastructure.PodMetricsService
 import sh.apptrail.controlplane.application.service.infrastructure.PodService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.*
 import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
@@ -13,7 +17,9 @@ import java.time.Instant
 class InfrastructureController(
   private val clusterRepository: ClusterRepository,
   private val nodeService: NodeService,
-  private val podService: PodService
+  private val podService: PodService,
+  private val nodeMetricsService: NodeMetricsService,
+  private val podMetricsService: PodMetricsService,
 ) {
 
   @GetMapping("/nodes")
@@ -30,6 +36,15 @@ class InfrastructureController(
     val node = nodeService.findNodeByClusterAndName(clusterId, nodeName)
       ?: return ResponseEntity.notFound().build()
     return ResponseEntity.ok(node.toResponse())
+  }
+
+  @GetMapping("/nodes/{nodeName}/metrics")
+  fun getNodeMetrics(
+    @PathVariable clusterId: Long,
+    @PathVariable nodeName: String,
+  ): ResponseEntity<NodeMetricsResponse> {
+    val metrics = nodeMetricsService.getNodeMetrics(clusterId, nodeName)
+    return ResponseEntity.ok(metrics)
   }
 
   @GetMapping("/nodes/{nodeName}/pods")
@@ -64,6 +79,16 @@ class InfrastructureController(
     val pod = pods.find { it.name == podName }
       ?: return ResponseEntity.notFound().build()
     return ResponseEntity.ok(pod.toDetailResponse())
+  }
+
+  @GetMapping("/namespaces/{namespace}/pods/{podName}/metrics")
+  fun getPodMetrics(
+    @PathVariable clusterId: Long,
+    @PathVariable namespace: String,
+    @PathVariable podName: String,
+  ): ResponseEntity<PodMetricsResponse> {
+    val metrics = podMetricsService.getPodMetrics(clusterId, namespace, podName)
+    return ResponseEntity.ok(metrics)
   }
 }
 

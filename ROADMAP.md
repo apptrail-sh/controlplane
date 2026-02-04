@@ -4,6 +4,9 @@ Future features and improvements planned for the Control Plane.
 
 ## Planned Features
 
+### Workload topology
+Visualize the workload topology (pods, nodes, regions, etc.) in a graph format.
+
 ### Promotion reminders and policies
 
 Notifications when versions aren't promoted to higher environments within a configurable time window.

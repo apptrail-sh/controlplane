@@ -1,7 +1,6 @@
 package sh.apptrail.controlplane.application.service.agent
 
 import org.slf4j.LoggerFactory
-import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
@@ -158,6 +157,33 @@ class AgentEventProcessorService(
     statusValue: String?,
     detectedAt: Instant,
   ) {
+    val existing = versionHistoryRepository.findByWorkloadInstanceIdAndCurrentVersionAndPreviousVersion(
+      workloadInstance.id!!,
+      currentVersion,
+      previousVersion,
+    )
+
+    if (existing != null) {
+      log.debug(
+        "Version history already exists for workloadInstance={}, version={}, updating existing record",
+        workloadInstance.id,
+        currentVersion,
+      )
+      workloadInstance.lastUpdatedAt = Instant.now()
+      workloadInstanceRepository.save(workloadInstance)
+      updateExistingVersionHistory(existing, eventPayload, phaseValue, statusValue, detectedAt)
+      publishNotificationIfNeeded(
+        versionHistory = existing,
+        eventPayload = eventPayload,
+        workload = workload,
+        workloadInstance = workloadInstance,
+        currentVersion = currentVersion,
+        previousVersion = previousVersion,
+        durationSeconds = existing.deploymentDurationSeconds,
+      )
+      return
+    }
+
     // New version detected - update lastUpdatedAt
     workloadInstance.lastUpdatedAt = Instant.now()
     workloadInstanceRepository.save(workloadInstance)
@@ -174,31 +200,7 @@ class AgentEventProcessorService(
       detectedAt = detectedAt,
     )
 
-    val savedVersionHistory = try {
-      versionHistoryRepository.save(versionHistory)
-    } catch (e: DataIntegrityViolationException) {
-      // Handle race condition: another pod created this version history concurrently
-      log.debug("Version history already exists, fetching existing record: {}", e.message)
-      val existing = versionHistoryRepository.findByWorkloadInstanceIdAndCurrentVersionAndPreviousVersion(
-        workloadInstance.id!!,
-        currentVersion,
-        previousVersion,
-      )
-      if (existing != null) {
-        // Update existing record with new phase/status if needed
-        updateExistingVersionHistory(existing, eventPayload, phaseValue, statusValue, detectedAt)
-        publishNotificationIfNeeded(
-          versionHistory = existing,
-          eventPayload = eventPayload,
-          workload = workload,
-          workloadInstance = workloadInstance,
-          currentVersion = currentVersion,
-          previousVersion = previousVersion,
-          durationSeconds = existing.deploymentDurationSeconds,
-        )
-      }
-      return
-    }
+    val savedVersionHistory = versionHistoryRepository.save(versionHistory)
 
     releaseFetchService?.queueReleaseFetch(savedVersionHistory.id!!)
 
