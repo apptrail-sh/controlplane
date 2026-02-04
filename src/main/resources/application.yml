@@ -145,6 +145,23 @@ apptrail:
     #       webhook-url: "${SLACK_WEBHOOK_PRODUCTION:}"
     #       channel: "#production-deployments"
 
+  node-metrics:
+    enabled: ${NODE_METRICS_ENABLED:true}
+    cluster-label: ${NODE_METRICS_CLUSTER_LABEL:cluster}
+    node-label: ${NODE_METRICS_NODE_LABEL:node}
+    cpu-query: ${NODE_METRICS_CPU_QUERY:100 - (avg(rate(node_cpu_seconds_total{mode="idle", {{nodeLabel}}="{{nodeName}}", {{clusterLabel}}="{{clusterName}}"}[5m])) * 100)}
+    memory-query: ${NODE_METRICS_MEMORY_QUERY:(1 - (node_memory_MemAvailable_bytes{{{nodeLabel}}="{{nodeName}}", {{clusterLabel}}="{{clusterName}}"} / node_memory_MemTotal_bytes{{{nodeLabel}}="{{nodeName}}", {{clusterLabel}}="{{clusterName}}"})) * 100}
+
+  pod-metrics:
+    enabled: ${POD_METRICS_ENABLED:true}
+    cluster-label: ${POD_METRICS_CLUSTER_LABEL:cluster}
+    namespace-label: ${POD_METRICS_NAMESPACE_LABEL:namespace}
+    pod-label: ${POD_METRICS_POD_LABEL:pod}
+    cpu-query: ${POD_METRICS_CPU_QUERY:sum(rate(container_cpu_usage_seconds_total{{{podLabel}}="{{podName}}", {{namespaceLabel}}="{{namespace}}", {{clusterLabel}}="{{clusterName}}", container!=""}[5m]))}
+    memory-query: ${POD_METRICS_MEMORY_QUERY:sum(container_memory_working_set_bytes{{{podLabel}}="{{podName}}", {{namespaceLabel}}="{{namespace}}", {{clusterLabel}}="{{clusterName}}", container!=""})}
+    cpu-limit-query: ${POD_METRICS_CPU_LIMIT_QUERY:sum(kube_pod_container_resource_limits{resource="cpu", {{podLabel}}="{{podName}}", {{namespaceLabel}}="{{namespace}}", {{clusterLabel}}="{{clusterName}}"})}
+    memory-limit-query: ${POD_METRICS_MEMORY_LIMIT_QUERY:sum(kube_pod_container_resource_limits{resource="memory", {{podLabel}}="{{podName}}", {{namespaceLabel}}="{{namespace}}", {{clusterLabel}}="{{clusterName}}"})}
+
   quick-links:
     links:
       - name: "GCP Logs"
