@@ -11,29 +11,29 @@
     {
       "description": "Group Kotlin updates",
       "groupName": "kotlin",
-      "matchPackagePatterns": [
-        "^org.jetbrains.kotlin"
+      "matchPackageNames": [
+        "/^org.jetbrains.kotlin/"
       ]
     },
     {
       "description": "Group Spring Boot updates",
       "groupName": "spring-boot",
-      "matchPackagePatterns": [
-        "^org.springframework.boot"
+      "matchPackageNames": [
+        "/^org.springframework.boot/"
       ]
     },
     {
       "description": "Group JJWT updates",
       "groupName": "jjwt",
-      "matchPackagePatterns": [
-        "^io.jsonwebtoken:jjwt"
+      "matchPackageNames": [
+        "/^io.jsonwebtoken:jjwt/"
       ]
     },
     {
       "description": "Group Testcontainers updates",
       "groupName": "testcontainers",
-      "matchPackagePatterns": [
-        "^org.testcontainers"
+      "matchPackageNames": [
+        "/^org.testcontainers/"
       ]
     }
   ]
