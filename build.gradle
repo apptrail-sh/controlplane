@@ -4,6 +4,7 @@ plugins {
     id 'org.springframework.boot' version '4.0.1'
     id 'io.spring.dependency-management' version '1.1.7'
     id 'org.jetbrains.kotlin.plugin.jpa' version '2.2.0'
+    id 'com.google.cloud.tools.jib' version '3.5.2'
 }
 
 group = 'sh.apptrail'
@@ -89,4 +90,22 @@ allOpen {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+jib {
+    from {
+        image = 'bellsoft/liberica-openjre-alpine:21'
+    }
+    to {
+        image = 'ghcr.io/apptrail-sh/controlplane'
+        tags = (project.findProperty('imageTag') ?: 'latest').toString().split(',').toList()
+    }
+    container {
+        ports = ['3000']
+        user = '65532:65532'
+        environment = [
+            'JAVA_OPTS': '-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0'
+        ]
+        creationTime = 'USE_CURRENT_TIMESTAMP'
+    }
 }

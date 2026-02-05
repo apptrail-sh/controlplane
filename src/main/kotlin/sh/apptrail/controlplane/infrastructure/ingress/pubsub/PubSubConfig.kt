@@ -1,5 +1,8 @@
 package sh.apptrail.controlplane.infrastructure.ingress.pubsub
 
+import com.google.api.gax.batching.FlowControlSettings
+import com.google.api.gax.core.ExecutorProvider
+import com.google.api.gax.core.InstantiatingExecutorProvider
 import com.google.cloud.pubsub.v1.AckReplyConsumer
 import com.google.cloud.pubsub.v1.MessageReceiver
 import com.google.cloud.pubsub.v1.Subscriber
@@ -36,7 +39,15 @@ class PubSubConfig(
     private const val MESSAGE_TYPE_ATTRIBUTE = "message_type"
     private const val RESOURCE_EVENT_TYPE = "resource_event"
     private const val HEARTBEAT_TYPE = "heartbeat"
+
+    // Concurrency settings for message processing
+    private const val PARALLEL_PULL_COUNT = 4
+    private const val EXECUTOR_THREAD_COUNT = 8
+    private const val MAX_OUTSTANDING_ELEMENT_COUNT = 100L
+    private const val MAX_OUTSTANDING_REQUEST_BYTES = 10L * 1024L * 1024L // 10MB
   }
+
+  private var executorProvider: ExecutorProvider? = null
 
   @PostConstruct
   fun subscribeToAgentEvents() {
@@ -71,10 +82,27 @@ class PubSubConfig(
       }
     }
 
-    subscriber = Subscriber.newBuilder(subscriptionName, receiver).build()
+    executorProvider = InstantiatingExecutorProvider.newBuilder()
+      .setExecutorThreadCount(EXECUTOR_THREAD_COUNT)
+      .build()
+
+    val flowControlSettings = FlowControlSettings.newBuilder()
+      .setMaxOutstandingElementCount(MAX_OUTSTANDING_ELEMENT_COUNT)
+      .setMaxOutstandingRequestBytes(MAX_OUTSTANDING_REQUEST_BYTES)
+      .build()
+
+    subscriber = Subscriber.newBuilder(subscriptionName, receiver)
+      .setParallelPullCount(PARALLEL_PULL_COUNT)
+      .setFlowControlSettings(flowControlSettings)
+      .setExecutorProvider(executorProvider)
+      .build()
+
     subscriber?.startAsync()?.awaitRunning()
 
-    log.info("Pub/Sub subscription active: {}", properties.subscription)
+    log.info(
+      "Pub/Sub subscription active: {} (parallelPullCount={}, executorThreads={}, maxOutstanding={})",
+      properties.subscription, PARALLEL_PULL_COUNT, EXECUTOR_THREAD_COUNT, MAX_OUTSTANDING_ELEMENT_COUNT
+    )
   }
 
   private fun processWorkloadEvent(payload: String) {
