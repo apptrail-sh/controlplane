@@ -7,8 +7,11 @@ import sh.apptrail.controlplane.infrastructure.persistence.entity.base.BaseEntit
 @Table(name = "workloads")
 class WorkloadEntity : BaseEntity() {
 
-  var kind: String? = null
-  var name: String? = null
+  @field:Column(nullable = false)
+  var kind: String = ""
+
+  @field:Column(nullable = false)
+  var name: String = ""
   var team: String? = null
 
   @field:Column(name = "part_of")
