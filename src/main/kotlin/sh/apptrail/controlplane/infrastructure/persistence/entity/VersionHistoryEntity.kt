@@ -44,10 +44,10 @@ class VersionHistoryEntity(
   @Column(name = "detected_at", nullable = false)
   var detectedAt: Instant = Instant.EPOCH,
 
-  @Column(name = "created_at", insertable = false, updatable = false)
+  @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
   var createdAt: Instant? = null,
 
-  @Column(name = "updated_at", insertable = false, updatable = false)
+  @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
   var updatedAt: Instant? = null,
 
   @ManyToOne(fetch = FetchType.LAZY)
