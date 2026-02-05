@@ -48,7 +48,7 @@ class ReleaseEntity(
   @Column(name = "fetched_at", nullable = false)
   var fetchedAt: Instant,
 
-  @Column(name = "created_at", insertable = false, updatable = false)
+  @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
   var createdAt: Instant? = null,
 ) {
   /**
