@@ -1,0 +1,40 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":separateMajorMinorReleases"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "description": "Group Kotlin updates",
+      "groupName": "kotlin",
+      "matchPackagePatterns": [
+        "^org.jetbrains.kotlin"
+      ]
+    },
+    {
+      "description": "Group Spring Boot updates",
+      "groupName": "spring-boot",
+      "matchPackagePatterns": [
+        "^org.springframework.boot"
+      ]
+    },
+    {
+      "description": "Group JJWT updates",
+      "groupName": "jjwt",
+      "matchPackagePatterns": [
+        "^io.jsonwebtoken:jjwt"
+      ]
+    },
+    {
+      "description": "Group Testcontainers updates",
+      "groupName": "testcontainers",
+      "matchPackagePatterns": [
+        "^org.testcontainers"
+      ]
+    }
+  ]
+}
