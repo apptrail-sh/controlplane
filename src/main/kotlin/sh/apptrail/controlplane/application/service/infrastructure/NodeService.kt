@@ -4,15 +4,15 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import sh.apptrail.controlplane.application.model.infrastructure.*
+import sh.apptrail.controlplane.application.service.ClusterService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.*
-import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.NodeRepository
 import java.time.Instant
 
 @Service
 class NodeService(
   private val nodeRepository: NodeRepository,
-  private val clusterRepository: ClusterRepository,
+  private val clusterService: ClusterService,
   private val broadcaster: InfrastructureEventBroadcaster
 ) {
 
@@ -21,11 +21,7 @@ class NodeService(
   @Transactional
   fun processNodeEvent(event: ResourceEventPayload): NodeEntity? {
     val clusterId = event.source.clusterId
-    val cluster = clusterRepository.findByName(clusterId)
-      ?: run {
-        log.warn("Cluster not found: $clusterId, skipping node event")
-        return null
-      }
+    val cluster = clusterService.findOrCreateCluster(clusterId)
 
     return when (event.eventKind) {
       ResourceEventKind.CREATED, ResourceEventKind.UPDATED, ResourceEventKind.STATUS_CHANGE ->

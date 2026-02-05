@@ -54,12 +54,10 @@ class PubSubConfig(
       val messageType = message.attributesMap[MESSAGE_TYPE_ATTRIBUTE]
 
       try {
-        if (messageType == RESOURCE_EVENT_TYPE) {
-          processResourceEvent(payload)
-        } else if (messageType == HEARTBEAT_TYPE) {
-          processHeartbeatEvent(payload)
-        } else {
-          processWorkloadEvent(payload)
+        when (messageType) {
+          RESOURCE_EVENT_TYPE -> processResourceEvent(payload)
+          HEARTBEAT_TYPE -> processHeartbeatEvent(payload)
+          else -> processWorkloadEvent(payload)
         }
         consumer.ack()
       } catch (e: JacksonException) {
@@ -90,16 +88,20 @@ class PubSubConfig(
     log.debug("Processing resource event from Pub/Sub")
     val eventPayload = jsonMapper.readValue(payload, ResourceEventPayload::class.java)
     resourceEventProcessor.processEvent(eventPayload)
-    log.debug("Processed resource event: {} {}/{}",
-      eventPayload.resourceType, eventPayload.resource.namespace ?: "", eventPayload.resource.name)
+    log.debug(
+      "Processed resource event: {} {}/{}",
+      eventPayload.resourceType, eventPayload.resource.namespace ?: "", eventPayload.resource.name
+    )
   }
 
   private fun processHeartbeatEvent(payload: String) {
     log.debug("Processing heartbeat event from Pub/Sub")
     val heartbeatPayload = jsonMapper.readValue(payload, ClusterHeartbeatPayload::class.java)
     clusterHeartbeatService.processHeartbeat(heartbeatPayload)
-    log.debug("Processed heartbeat event: {} from cluster {}",
-      heartbeatPayload.eventId, heartbeatPayload.source.clusterId)
+    log.debug(
+      "Processed heartbeat event: {} from cluster {}",
+      heartbeatPayload.eventId, heartbeatPayload.source.clusterId
+    )
   }
 
   @PreDestroy

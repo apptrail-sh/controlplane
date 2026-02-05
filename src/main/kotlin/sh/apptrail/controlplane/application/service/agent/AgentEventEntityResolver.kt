@@ -3,18 +3,18 @@ package sh.apptrail.controlplane.application.service.agent
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.application.model.agent.AgentEvent
+import sh.apptrail.controlplane.application.service.ClusterService
 import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 import sh.apptrail.controlplane.infrastructure.persistence.entity.ClusterEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadEntity
 import sh.apptrail.controlplane.infrastructure.persistence.entity.WorkloadInstanceEntity
-import sh.apptrail.controlplane.infrastructure.persistence.repository.ClusterRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadInstanceRepository
 import sh.apptrail.controlplane.infrastructure.persistence.repository.WorkloadRepository
 import java.time.Instant
 
 @Service
 class AgentEventEntityResolver(
-  private val clusterRepository: ClusterRepository,
+  private val clusterService: ClusterService,
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val clusterTopologyResolver: ClusterTopologyResolver,
@@ -28,8 +28,7 @@ class AgentEventEntityResolver(
   }
 
   fun resolveCluster(clusterId: String): ClusterEntity {
-    return clusterRepository.findByName(clusterId)
-      ?: clusterRepository.save(ClusterEntity().apply { name = clusterId })
+    return clusterService.findOrCreateCluster(clusterId)
   }
 
   fun resolveWorkload(

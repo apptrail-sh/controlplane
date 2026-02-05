@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import sh.apptrail.controlplane.application.model.infrastructure.*
+import sh.apptrail.controlplane.application.service.ClusterService
 import sh.apptrail.controlplane.infrastructure.persistence.entity.*
 import sh.apptrail.controlplane.infrastructure.persistence.repository.*
 import java.time.Instant
@@ -12,7 +13,7 @@ import java.time.Instant
 class PodService(
   private val podRepository: PodRepository,
   private val nodeRepository: NodeRepository,
-  private val clusterRepository: ClusterRepository,
+  private val clusterService: ClusterService,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val broadcaster: InfrastructureEventBroadcaster
 ) {
@@ -22,11 +23,7 @@ class PodService(
   @Transactional
   fun processPodEvent(event: ResourceEventPayload): PodEntity? {
     val clusterId = event.source.clusterId
-    val cluster = clusterRepository.findByName(clusterId)
-      ?: run {
-        log.warn("Cluster not found: $clusterId, skipping pod event")
-        return null
-      }
+    val cluster = clusterService.findOrCreateCluster(clusterId)
 
     return when (event.eventKind) {
       ResourceEventKind.CREATED, ResourceEventKind.UPDATED, ResourceEventKind.STATUS_CHANGE ->
