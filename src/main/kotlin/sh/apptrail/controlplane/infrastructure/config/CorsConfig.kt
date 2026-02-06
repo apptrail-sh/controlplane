@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.web.servlet.config.annotation.CorsRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
-@ConfigurationProperties(prefix = "app.cors")
+@ConfigurationProperties(prefix = "apptrail.cors")
 data class CorsProperties(
   val allowedOrigins: List<String> = emptyList(),
   val allowedMethods: List<String> = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),

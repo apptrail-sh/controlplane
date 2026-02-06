@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.infrastructure.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-@ConfigurationProperties(prefix = "app.cleanup")
+@ConfigurationProperties(prefix = "apptrail.cleanup")
 data class CleanupProperties(
   val clusterStatusCheckIntervalMs: Long = 300_000, // 5 minutes
   val clusterOfflineThresholdMinutes: Long = 15,

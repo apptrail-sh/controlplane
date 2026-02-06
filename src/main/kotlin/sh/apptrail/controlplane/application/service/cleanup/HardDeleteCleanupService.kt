@@ -22,7 +22,7 @@ class HardDeleteCleanupService(
 ) {
   private val logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(cron = "\${app.cleanup.hard-delete-cron:0 0 3 * * ?}")
+  @Scheduled(cron = "\${apptrail.cleanup.hard-delete-cron:0 0 3 * * ?}")
   @Transactional
   fun hardDeleteOldRecords() {
     logger.info("Starting hard delete cleanup")

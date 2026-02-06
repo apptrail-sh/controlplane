@@ -12,7 +12,7 @@ import sh.apptrail.controlplane.infrastructure.gitprovider.model.ReleaseInfo
  * Fetches release information from GitHub Releases API.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.gitprovider.github", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.gitprovider.github", name = ["enabled"], havingValue = "true")
 class GitHubProvider(
   private val authService: GitHubAuthService,
   private val apiClient: GitHubApiClient,

@@ -12,11 +12,11 @@ import sh.apptrail.controlplane.application.service.CellBackfillService
  * Startup task that backfills the cell field for existing workload instances
  * based on the current cell configuration.
  *
- * Enabled via `app.backfill.cell.enabled-on-startup=true`
+ * Enabled via `apptrail.backfill.cell.enabled-on-startup=true`
  */
 @Component
 @ConditionalOnProperty(
-  prefix = "app.backfill.cell",
+  prefix = "apptrail.backfill.cell",
   name = ["enabled-on-startup"],
   havingValue = "true",
   matchIfMissing = false

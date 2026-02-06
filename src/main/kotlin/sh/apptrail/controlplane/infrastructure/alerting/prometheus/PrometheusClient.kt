@@ -8,7 +8,7 @@ import org.springframework.web.client.RestClient
 import org.springframework.web.client.RestClientException
 
 @Component
-@ConditionalOnProperty(prefix = "app.alerting.prometheus", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.alerting.prometheus", name = ["enabled"], havingValue = "true")
 class PrometheusClient(
   private val properties: PrometheusProperties,
 ) {

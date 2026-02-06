@@ -6,7 +6,7 @@ import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
 import sh.apptrail.controlplane.application.service.agent.AgentEventProcessorService
 
 @Component
-@ConditionalOnProperty(prefix = "app.ingest.pubsub", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.ingest.pubsub", name = ["enabled"], havingValue = "true")
 class GCPPubSubAgentEventIngester(
   private val processor: AgentEventProcessorService,
   private val mapper: GCPPubSubAgentEventMapper,

@@ -23,7 +23,7 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 
 @Configuration
-@ConditionalOnProperty(prefix = "app.ingest.pubsub", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.ingest.pubsub", name = ["enabled"], havingValue = "true")
 @EnableConfigurationProperties(PubSubProperties::class)
 class PubSubConfig(
   private val properties: PubSubProperties,
@@ -52,7 +52,7 @@ class PubSubConfig(
   @PostConstruct
   fun subscribeToAgentEvents() {
     if (properties.subscription.isBlank()) {
-      log.error("Pub/Sub subscription is not configured. Set app.ingest.pubsub.subscription")
+      log.error("Pub/Sub subscription is not configured. Set apptrail.ingest.pubsub.subscription")
       return
     }
 

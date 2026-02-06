@@ -19,7 +19,7 @@ class ClusterStatusService(
 ) {
   private val logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(fixedDelayString = "\${app.cleanup.cluster-status-check-interval-ms:300000}")
+  @Scheduled(fixedDelayString = "\${apptrail.cleanup.cluster-status-check-interval-ms:300000}")
   @Transactional
   fun checkClusterStatus() {
     logger.debug("Checking cluster status for offline detection")

@@ -16,7 +16,7 @@ import java.time.Instant
  * REST client for GitHub API.
  */
 @Component
-@ConditionalOnProperty(prefix = "app.gitprovider.github", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.gitprovider.github", name = ["enabled"], havingValue = "true")
 class GitHubApiClient(
   private val properties: GitHubProperties,
 ) {

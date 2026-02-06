@@ -23,7 +23,7 @@ class StaleResourceCleanupService(
 ) {
   private val logger = LoggerFactory.getLogger(javaClass)
 
-  @Scheduled(cron = "\${app.cleanup.stale-cleanup-cron:0 0 4 * * ?}")
+  @Scheduled(cron = "\${apptrail.cleanup.stale-cleanup-cron:0 0 4 * * ?}")
   @Transactional
   fun cleanupStaleResources() {
     logger.info("Starting stale resource cleanup for long-term offline clusters")

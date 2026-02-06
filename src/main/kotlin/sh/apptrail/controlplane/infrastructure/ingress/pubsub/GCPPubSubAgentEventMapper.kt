@@ -7,7 +7,7 @@ import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
 import sh.apptrail.controlplane.application.service.ClusterTopologyResolver
 
 @Component
-@ConditionalOnProperty(prefix = "app.ingest.pubsub", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.ingest.pubsub", name = ["enabled"], havingValue = "true")
 class GCPPubSubAgentEventMapper(
   private val clusterTopologyResolver: ClusterTopologyResolver,
 ) {

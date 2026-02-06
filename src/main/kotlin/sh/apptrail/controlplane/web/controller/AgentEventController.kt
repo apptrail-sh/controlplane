@@ -13,7 +13,7 @@ import sh.apptrail.controlplane.infrastructure.ingress.http.HttpAgentEventIngest
 
 @RestController
 @RequestMapping("/ingest/v1/agent/events")
-@ConditionalOnProperty(prefix = "app.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "apptrail.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class AgentEventController(
   private val ingester: HttpAgentEventIngester,
   private val resourceEventProcessor: ResourceEventProcessorService

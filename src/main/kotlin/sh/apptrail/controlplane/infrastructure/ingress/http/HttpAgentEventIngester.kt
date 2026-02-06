@@ -6,7 +6,7 @@ import sh.apptrail.controlplane.application.model.agent.AgentEventPayload
 import sh.apptrail.controlplane.application.service.agent.AgentEventProcessorService
 
 @Component
-@ConditionalOnProperty(prefix = "app.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "apptrail.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class HttpAgentEventIngester(
   private val processor: AgentEventProcessorService,
   private val mapper: HttpAgentEventMapper,

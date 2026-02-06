@@ -13,7 +13,7 @@ import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 @Service
-@ConditionalOnProperty(prefix = "app.gitprovider.github", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.gitprovider.github", name = ["enabled"], havingValue = "true")
 class GitHubWebhookService(
   private val properties: GitHubProperties,
   private val jsonMapper: JsonMapper,

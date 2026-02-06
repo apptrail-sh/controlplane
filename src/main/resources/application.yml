@@ -27,7 +27,7 @@ spring:
       pubsub:
         enabled: ${PUBSUB_ENABLED:false}
 
-app:
+apptrail:
   backfill:
     cell:
       enabled-on-startup: false  # Set to true to run cell backfill on startup
@@ -105,10 +105,6 @@ app:
     hard-delete-retention-days: ${CLEANUP_HARD_DELETE_RETENTION_DAYS:30}
     heartbeat-retention-days: ${CLEANUP_HEARTBEAT_RETENTION_DAYS:7}
 
-server:
-  port: 3000
-
-apptrail:
   notifications:
     enabled: ${NOTIFICATIONS_ENABLED:false}
     frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
@@ -184,3 +180,6 @@ apptrail:
         urlTemplate: "kubectl --context=$(kubectl config get-contexts -o name | grep -i '{{cluster.name}}' | head -1) -n {{instance.namespace}} describe {{workload.kind | lowercase}}/{{workload.name}}"
         linkType: command
         icon: terminal
+
+server:
+  port: 3000

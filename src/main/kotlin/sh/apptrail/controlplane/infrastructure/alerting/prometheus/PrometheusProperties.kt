@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.infrastructure.alerting.prometheus
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-@ConfigurationProperties(prefix = "app.alerting.prometheus")
+@ConfigurationProperties(prefix = "apptrail.alerting.prometheus")
 data class PrometheusProperties(
   val enabled: Boolean = false,
   val baseUrl: String = "http://localhost:8481",

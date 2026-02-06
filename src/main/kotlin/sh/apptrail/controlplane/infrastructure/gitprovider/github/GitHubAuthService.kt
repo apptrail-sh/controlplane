@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Handles GitHub App authentication: JWT generation and installation token management.
  */
 @Service
-@ConditionalOnProperty(prefix = "app.gitprovider.github", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.gitprovider.github", name = ["enabled"], havingValue = "true")
 class GitHubAuthService(
   private val properties: GitHubProperties,
 ) {

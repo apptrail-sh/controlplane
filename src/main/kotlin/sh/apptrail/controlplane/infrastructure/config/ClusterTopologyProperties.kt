@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.infrastructure.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-@ConfigurationProperties(prefix = "app.clusters")
+@ConfigurationProperties(prefix = "apptrail.clusters")
 data class ClusterTopologyProperties(
   val definitions: Map<String, ClusterConfig> = emptyMap(),
   val environments: List<EnvironmentConfig> = emptyList(),

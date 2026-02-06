@@ -14,7 +14,7 @@ import java.time.temporal.ChronoUnit
  * Runs as a scheduled background job processing version history entries without releases.
  */
 @Service
-@ConditionalOnProperty(prefix = "app.release-fetch", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "apptrail.release-fetch", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class ReleaseFetchService(
   private val versionHistoryRepository: VersionHistoryRepository,
   private val releaseService: ReleaseService,
@@ -55,7 +55,7 @@ class ReleaseFetchService(
    * Each entry is processed in its own isolated transaction via REQUIRES_NEW,
    * ensuring that a failure in one entry doesn't corrupt the session or affect others.
    */
-  @Scheduled(fixedDelayString = "\${app.release-fetch.interval-ms:30000}", initialDelay = 10000)
+  @Scheduled(fixedDelayString = "\${apptrail.release-fetch.interval-ms:30000}", initialDelay = 10000)
   fun processPendingFetches() {
     val batchSize = 50
     val cutoff = Instant.now().minus(24, ChronoUnit.HOURS)

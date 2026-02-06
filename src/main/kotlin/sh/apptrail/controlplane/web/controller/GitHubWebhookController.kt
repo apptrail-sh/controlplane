@@ -11,7 +11,7 @@ import sh.apptrail.controlplane.infrastructure.gitprovider.github.GitHubWebhookS
 
 @RestController
 @RequestMapping("/webhooks/github")
-@ConditionalOnProperty(prefix = "app.gitprovider.github", name = ["enabled"], havingValue = "true")
+@ConditionalOnProperty(prefix = "apptrail.gitprovider.github", name = ["enabled"], havingValue = "true")
 class GitHubWebhookController(
   private val webhookService: GitHubWebhookService,
   private val releaseService: ReleaseService,

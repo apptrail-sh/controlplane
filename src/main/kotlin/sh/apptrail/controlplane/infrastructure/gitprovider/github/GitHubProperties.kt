@@ -2,7 +2,7 @@ package sh.apptrail.controlplane.infrastructure.gitprovider.github
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-@ConfigurationProperties(prefix = "app.gitprovider.github")
+@ConfigurationProperties(prefix = "apptrail.gitprovider.github")
 data class GitHubProperties(
   val enabled: Boolean = false,
   val appId: String = "",

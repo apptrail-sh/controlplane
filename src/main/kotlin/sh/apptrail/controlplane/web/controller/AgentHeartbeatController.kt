@@ -11,7 +11,7 @@ import sh.apptrail.controlplane.application.service.cleanup.ClusterHeartbeatServ
 
 @RestController
 @RequestMapping("/ingest/v1/agent/heartbeat")
-@ConditionalOnProperty(prefix = "app.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "apptrail.ingest.http", name = ["enabled"], havingValue = "true", matchIfMissing = true)
 class AgentHeartbeatController(
   private val heartbeatService: ClusterHeartbeatService
 ) {

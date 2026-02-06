@@ -18,7 +18,7 @@ class AgentEventEntityResolver(
   private val workloadRepository: WorkloadRepository,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
   private val clusterTopologyResolver: ClusterTopologyResolver,
-  @Value("\${app.ingest.team-label:team}")
+  @Value("\${apptrail.ingest.team-label:team}")
   private val teamLabelKey: String,
 ) {
 
