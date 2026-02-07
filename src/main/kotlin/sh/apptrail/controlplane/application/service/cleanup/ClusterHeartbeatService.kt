@@ -54,21 +54,23 @@ class ClusterHeartbeatService(
     heartbeatRepository.save(heartbeat)
 
     // Reconcile resources: soft-delete any nodes/pods not in the inventory
-    reconcileResources(cluster.id!!, payload.inventory.nodeUids, payload.inventory.podUids, now)
+    reconcileResources(cluster.id!!, payload.inventory.nodeUids, payload.inventory.podUids, now, payload.occurredAt)
   }
 
   private fun reconcileResources(
     clusterId: Long,
     activeNodeUids: List<String>,
     activePodUids: List<String>,
-    deletedAt: Instant
+    deletedAt: Instant,
+    heartbeatOccurredAt: Instant
   ) {
     // Reconcile nodes
     if (activeNodeUids.isNotEmpty()) {
       val deletedNodeCount = nodeRepository.softDeleteNotInUidSet(
         clusterId,
         activeNodeUids.toSet(),
-        deletedAt
+        deletedAt,
+        heartbeatOccurredAt
       )
       if (deletedNodeCount > 0) {
         logger.info("Soft-deleted {} stale nodes for cluster {}", deletedNodeCount, clusterId)
@@ -80,7 +82,8 @@ class ClusterHeartbeatService(
       val deletedPodCount = podRepository.softDeleteNotInUidSet(
         clusterId,
         activePodUids.toSet(),
-        deletedAt
+        deletedAt,
+        heartbeatOccurredAt
       )
       if (deletedPodCount > 0) {
         logger.info("Soft-deleted {} stale pods for cluster {}", deletedPodCount, clusterId)

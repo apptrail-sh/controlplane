@@ -27,8 +27,9 @@ interface NodeRepository : JpaRepository<NodeEntity, Long> {
     WHERE n.cluster.id = :clusterId
     AND n.deletedAt IS NULL
     AND n.uid NOT IN :activeUids
+    AND n.lastUpdatedAt < :heartbeatOccurredAt
   """)
-  fun softDeleteNotInUidSet(clusterId: Long, activeUids: Set<String>, deletedAt: Instant): Int
+  fun softDeleteNotInUidSet(clusterId: Long, activeUids: Set<String>, deletedAt: Instant, heartbeatOccurredAt: Instant): Int
 
   @Modifying
   @Query("""

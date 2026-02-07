@@ -53,8 +53,9 @@ interface PodRepository : JpaRepository<PodEntity, Long> {
     WHERE p.cluster.id = :clusterId
     AND p.deletedAt IS NULL
     AND p.uid NOT IN :activeUids
+    AND p.lastUpdatedAt < :heartbeatOccurredAt
   """)
-  fun softDeleteNotInUidSet(clusterId: Long, activeUids: Set<String>, deletedAt: Instant): Int
+  fun softDeleteNotInUidSet(clusterId: Long, activeUids: Set<String>, deletedAt: Instant, heartbeatOccurredAt: Instant): Int
 
   @Modifying
   @Query("""

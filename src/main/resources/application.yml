@@ -22,10 +22,7 @@ spring:
   docker:
     compose:
       lifecycle-management: start-only
-  cloud:
-    gcp:
-      pubsub:
-        enabled: ${PUBSUB_ENABLED:false}
+      enabled: false
 
 apptrail:
   backfill:
