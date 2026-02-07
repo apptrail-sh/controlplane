@@ -2,8 +2,8 @@
 
 Central API and data repository for aggregating workload data from agents.
 
-**Language:** Kotlin 1.9.25
-**Framework:** Spring Boot 3.5.9, Java 21
+**Language:** Kotlin 2.3.10
+**Framework:** Spring Boot 4.0.2, Java 21
 
 ## Commands
 
@@ -20,15 +20,10 @@ Follows hexagonal/clean architecture:
 
 ```
 src/main/kotlin/sh/apptrail/controlplane/
-├── domain/           # Core business entities and domain events
 ├── application/      # Use cases and service layer
 ├── infrastructure/   # External adapters (persistence, HTTP clients, notifications)
 └── web/              # HTTP controllers and DTOs (REST API)
 ```
-
-**Domain** (`domain/`):
-- `model/` - Core entities (Workload, Cluster, WorkloadVersion, etc.)
-- `event/` - Domain events
 
 **Application** (`application/`):
 - `service/` - Business logic and orchestration
@@ -38,12 +33,13 @@ src/main/kotlin/sh/apptrail/controlplane/
 - `persistence/` - JPA repositories and database adapters
 - `ingress/` - HTTP API for receiving events from agents
 - `notification/` - Slack/webhook integrations
+- `alerting/` - Prometheus alerting
+- `gitprovider/` - GitHub integration
 - `config/` - Spring configuration
 
 **Web** (`web/`):
 - `controller/` - REST API endpoints
 - `dto/` - Request/response objects
-- `advice/` - Exception handling
 
 ## Database
 
@@ -68,7 +64,7 @@ Configuration: `src/main/resources/application.yml`
 
 ## Gotchas
 
-- Uses Kotlin 1.9.25 with 2-space indentation
+- Uses Kotlin 2.3.10 with 2-space indentation
 - No formatter/linter configured - follow IntelliJ IDEA Kotlin defaults
 - Package naming: lowercase (e.g., `sh.apptrail.controlplane`)
 - Test files: `*Tests.kt` in `src/test/kotlin`
