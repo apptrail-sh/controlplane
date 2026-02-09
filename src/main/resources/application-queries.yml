@@ -8,23 +8,15 @@ apptrail:
         description: Percentage of requests resulting in errors
         query: |
           sum(
-            rate(sttp_requests_error_count_total{}[5m])
+            rate(tapir_request_total{status="5xx"}[5m])
             * on(cluster, namespace, pod) group_left(workload, workload_type)
             namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
           /
-          (
-            sum(
-              rate(sttp_requests_success_count_total{}[5m])
-              * on(cluster, namespace, pod) group_left(workload, workload_type)
-              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
-            )
-            +
-            sum(
-              rate(sttp_requests_error_count_total{}[5m])
-              * on(cluster, namespace, pod) group_left(workload, workload_type)
-              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
-            )
+          sum(
+            rate(tapir_request_total{}[5m])
+            * on(cluster, namespace, pod) group_left(workload, workload_type)
+            namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
         unit: percentage
         category: errors
@@ -36,7 +28,7 @@ apptrail:
         description: Total requests per second
         query: |
           sum(
-            rate(sttp_request_latency_count{}[5m])
+            rate(tapir_request_total{}[5m])
             * on(cluster, namespace, pod) group_left(workload, workload_type)
             namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
@@ -51,11 +43,11 @@ apptrail:
         query: |
           histogram_quantile(0.50,
             sum(
-              rate(sttp_request_latency_bucket{}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)
-          )
+          ) * 1000
         unit: milliseconds
         category: latency
         sparkline-range: 1h
@@ -67,11 +59,11 @@ apptrail:
         query: |
           histogram_quantile(0.95,
             sum(
-              rate(sttp_request_latency_bucket{}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)
-          )
+          ) * 1000
         unit: milliseconds
         category: latency
         sparkline-range: 1h
@@ -83,11 +75,11 @@ apptrail:
         query: |
           histogram_quantile(0.99,
             sum(
-              rate(sttp_request_latency_bucket{}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)
-          )
+          ) * 1000
         unit: milliseconds
         category: latency
         sparkline-range: 1h
