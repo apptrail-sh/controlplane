@@ -8,7 +8,6 @@ plugins {
 }
 
 group = 'sh.apptrail'
-version = '0.0.1-SNAPSHOT'
 description = 'controlplane'
 
 java {
@@ -107,5 +106,78 @@ jib {
             'JAVA_OPTS': '-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0'
         ]
         creationTime = 'USE_CURRENT_TIMESTAMP'
+    }
+}
+
+tasks.register('bumpVersion') {
+    description = 'Bumps the project version and creates a git tag. Usage: ./gradlew bumpVersion -Pbump=major|minor|patch'
+    group = 'versioning'
+
+    doLast {
+        if (!project.hasProperty('bump')) {
+            throw new GradleException("Missing required property 'bump'. Usage: ./gradlew bumpVersion -Pbump=major|minor|patch")
+        }
+
+        def bumpType = project.property('bump')
+        if (!(bumpType in ['major', 'minor', 'patch'])) {
+            throw new GradleException("Invalid bump type '${bumpType}'. Must be one of: major, minor, patch")
+        }
+
+        def statusResult = ['git', 'status', '--porcelain'].execute()
+        statusResult.waitFor()
+        if (statusResult.text.trim()) {
+            throw new GradleException("Working directory is dirty. Commit or stash changes before bumping version.")
+        }
+
+        def propsFile = file('gradle.properties')
+        def propsText = propsFile.text
+        def matcher = propsText =~ /version\s*=\s*(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?/
+
+        if (!matcher.find()) {
+            throw new GradleException("Could not parse version from gradle.properties. Expected format: version=X.Y.Z[-SNAPSHOT]")
+        }
+
+        def major = matcher.group(1) as int
+        def minor = matcher.group(2) as int
+        def patch = matcher.group(3) as int
+        def oldVersion = "${major}.${minor}.${patch}${matcher.group(4) ?: ''}"
+
+        switch (bumpType) {
+            case 'major': major++; minor = 0; patch = 0; break
+            case 'minor': minor++; patch = 0; break
+            case 'patch': patch++; break
+        }
+
+        def newVersion = "${major}.${minor}.${patch}"
+        def tag = "v${newVersion}"
+
+        def tagCheck = ['git', 'tag', '-l', tag].execute()
+        tagCheck.waitFor()
+        if (tagCheck.text.trim()) {
+            throw new GradleException("Tag '${tag}' already exists.")
+        }
+
+        propsFile.text = propsText.replaceFirst(
+            /version\s*=\s*\d+\.\d+\.\d+(-SNAPSHOT)?/,
+            "version=${newVersion}"
+        )
+
+        ['git', 'add', 'gradle.properties'].execute().waitFor()
+
+        def commitResult = ['git', 'commit', '-m', "chore: bump version to ${newVersion}"].execute()
+        commitResult.waitFor()
+        if (commitResult.exitValue() != 0) {
+            throw new GradleException("Git commit failed: ${commitResult.errorStream.text}")
+        }
+
+        def tagResult = ['git', 'tag', tag].execute()
+        tagResult.waitFor()
+        if (tagResult.exitValue() != 0) {
+            throw new GradleException("Git tag failed: ${tagResult.errorStream.text}")
+        }
+
+        logger.lifecycle("Version bumped: ${oldVersion} -> ${newVersion}")
+        logger.lifecycle("Created tag: ${tag}")
+        logger.lifecycle("Run 'git push origin main --tags' to trigger the release.")
     }
 }
