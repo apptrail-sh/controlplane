@@ -5,11 +5,14 @@ import org.springframework.stereotype.Service
 import sh.apptrail.controlplane.infrastructure.alerting.prometheus.MetricInstantResult
 import sh.apptrail.controlplane.infrastructure.alerting.prometheus.MetricRangeResult
 import sh.apptrail.controlplane.infrastructure.alerting.prometheus.PrometheusClient
+import sh.apptrail.controlplane.infrastructure.alerting.prometheus.PrometheusProperties
 import sh.apptrail.controlplane.infrastructure.alerting.prometheus.SparklinePoint
 import sh.apptrail.controlplane.infrastructure.config.MetricCategory
 import sh.apptrail.controlplane.infrastructure.config.MetricUnit
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
 
 data class InstanceMetricsRequest(
   val clusterName: String,
@@ -45,8 +48,17 @@ data class InstanceMetricsResponse(
 class InstanceMetricsService(
   private val metricsQueryService: MetricsQueryService,
   private val prometheusClient: PrometheusClient?,
+  private val prometheusProperties: PrometheusProperties?,
 ) {
   private val log = LoggerFactory.getLogger(InstanceMetricsService::class.java)
+
+  private data class CacheEntry(
+    val response: InstanceMetricsResponse,
+    val timestamp: Long,
+  )
+  // TODO add Valkey later
+  private val cache = ConcurrentHashMap<String, CacheEntry>()
+  private val executor = Executors.newVirtualThreadPerTaskExecutor()
 
   fun getMetricsStatus(): MetricsStatusResponse {
     return MetricsStatusResponse(
@@ -67,6 +79,17 @@ class InstanceMetricsService(
       )
     }
 
+    val includeSparklines = request.includeSparklines && sparklinesEnabled
+    val cacheKey = buildCacheKey(request, includeSparklines)
+    val cacheTtlMs = (prometheusProperties?.cache?.ttlSeconds ?: 30) * 1000
+
+    val cached = cache[cacheKey]
+    if (cached != null && prometheusProperties?.cache?.enabled != false) {
+      if (System.currentTimeMillis() - cached.timestamp < cacheTtlMs) {
+        return cached.response
+      }
+    }
+
     val context = MetricQueryContext(
       clusterName = request.clusterName,
       clusterId = request.clusterId,
@@ -80,47 +103,58 @@ class InstanceMetricsService(
     )
 
     val interpolatedQueries = metricsQueryService.getInterpolatedQueries(context)
-    val includeSparklines = request.includeSparklines && sparklinesEnabled
 
-    val metrics = interpolatedQueries.map { query ->
-      try {
-        val instantResult = prometheusClient!!.queryInstant(query.query)
-        val sparklineData = if (includeSparklines) {
-          prometheusClient.queryRange(query.query, query.sparklineRange, query.sparklineStep)
-        } else {
-          null
+    val futures = interpolatedQueries.map { query ->
+      executor.submit<FormattedMetricValue> {
+        try {
+          val instantResult = prometheusClient!!.queryInstant(query.query)
+          val sparklineData = if (includeSparklines) {
+            prometheusClient.queryRange(query.query, query.sparklineRange, query.sparklineStep)
+          } else {
+            null
+          }
+
+          FormattedMetricValue(
+            id = query.id,
+            name = query.name,
+            description = query.description,
+            rawValue = instantResult?.value,
+            formattedValue = formatValue(instantResult, query.unit),
+            unit = query.unit,
+            category = query.category,
+            sparkline = sparklineData?.points,
+          )
+        } catch (e: Exception) {
+          log.warn("Failed to fetch metric ${query.id}: ${e.message}")
+          FormattedMetricValue(
+            id = query.id,
+            name = query.name,
+            description = query.description,
+            rawValue = null,
+            formattedValue = null,
+            unit = query.unit,
+            category = query.category,
+            sparkline = null,
+          )
         }
-
-        FormattedMetricValue(
-          id = query.id,
-          name = query.name,
-          description = query.description,
-          rawValue = instantResult?.value,
-          formattedValue = formatValue(instantResult, query.unit),
-          unit = query.unit,
-          category = query.category,
-          sparkline = sparklineData?.points,
-        )
-      } catch (e: Exception) {
-        log.warn("Failed to fetch metric ${query.id}: ${e.message}")
-        FormattedMetricValue(
-          id = query.id,
-          name = query.name,
-          description = query.description,
-          rawValue = null,
-          formattedValue = null,
-          unit = query.unit,
-          category = query.category,
-          sparkline = null,
-        )
       }
     }
+    val metrics = futures.map { it.get() }
 
-    return InstanceMetricsResponse(
+    val response = InstanceMetricsResponse(
       metrics = metrics,
       metricsEnabled = true,
       sparklinesEnabled = sparklinesEnabled,
     )
+
+    cache[cacheKey] = CacheEntry(response, System.currentTimeMillis())
+    return response
+  }
+
+  private fun buildCacheKey(request: InstanceMetricsRequest, includeSparklines: Boolean): String {
+    return "${request.clusterName}:${request.clusterId}:${request.namespace}:" +
+      "${request.environment}:${request.cell}:${request.workloadName}:" +
+      "${request.workloadKind}:${request.team}:${request.version}:$includeSparklines"
   }
 
   private fun formatValue(result: MetricInstantResult?, unit: MetricUnit): String? {
