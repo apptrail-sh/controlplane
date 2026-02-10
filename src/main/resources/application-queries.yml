@@ -8,13 +8,13 @@ apptrail:
         description: Percentage of requests resulting in errors
         query: |
           sum(
-            rate(tapir_request_total{status="5xx"}[5m])
+            rate(tapir_request_total{status="5xx", cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
             * on(cluster, namespace, pod) group_left(workload, workload_type)
             namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
           /
           sum(
-            rate(tapir_request_total{}[5m])
+            rate(tapir_request_total{cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
             * on(cluster, namespace, pod) group_left(workload, workload_type)
             namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
@@ -28,7 +28,7 @@ apptrail:
         description: Total requests per second
         query: |
           sum(
-            rate(tapir_request_total{}[5m])
+            rate(tapir_request_total{cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
             * on(cluster, namespace, pod) group_left(workload, workload_type)
             namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
           )
@@ -43,7 +43,7 @@ apptrail:
         query: |
           histogram_quantile(0.50,
             sum(
-              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers", cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)
@@ -59,7 +59,7 @@ apptrail:
         query: |
           histogram_quantile(0.95,
             sum(
-              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers", cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)
@@ -75,7 +75,7 @@ apptrail:
         query: |
           histogram_quantile(0.99,
             sum(
-              rate(tapir_request_duration_seconds_bucket{phase="headers"}[5m])
+              rate(tapir_request_duration_seconds_bucket{phase="headers", cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
               * on(cluster, namespace, pod) group_left(workload, workload_type)
               namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
             ) by (le)

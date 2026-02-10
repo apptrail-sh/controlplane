@@ -104,15 +104,19 @@ class InstanceMetricsService(
 
     val interpolatedQueries = metricsQueryService.getInterpolatedQueries(context)
 
+    val startTime = System.nanoTime()
+
     val futures = interpolatedQueries.map { query ->
       executor.submit<FormattedMetricValue> {
         try {
+          val queryStart = System.nanoTime()
           val instantResult = prometheusClient!!.queryInstant(query.query)
           val sparklineData = if (includeSparklines) {
             prometheusClient.queryRange(query.query, query.sparklineRange, query.sparklineStep)
           } else {
             null
           }
+          log.debug("Metric [{}] took {}ms", query.id, (System.nanoTime() - queryStart) / 1_000_000)
 
           FormattedMetricValue(
             id = query.id,
@@ -140,6 +144,9 @@ class InstanceMetricsService(
       }
     }
     val metrics = futures.map { it.get() }
+
+    log.info("Instance metrics fetch completed in {}ms ({} queries, sparklines={})",
+      (System.nanoTime() - startTime) / 1_000_000, interpolatedQueries.size, includeSparklines)
 
     val response = InstanceMetricsResponse(
       metrics = metrics,

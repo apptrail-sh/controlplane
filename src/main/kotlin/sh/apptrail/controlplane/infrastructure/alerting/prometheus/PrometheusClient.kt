@@ -210,7 +210,9 @@ class PrometheusClient(
    */
   fun queryInstant(query: String): MetricInstantResult? {
     return try {
+      val start = System.nanoTime()
       val response = executeQuery(query)
+      log.debug("queryInstant HTTP call took {}ms", (System.nanoTime() - start) / 1_000_000)
       val results = response?.data?.result
       if (response?.status != "success" || results.isNullOrEmpty()) {
         return null
@@ -238,6 +240,7 @@ class PrometheusClient(
    */
   fun queryRange(query: String, range: String, step: String): MetricRangeResult? {
     return try {
+      val timerStart = System.nanoTime()
       val now = System.currentTimeMillis() / 1000
       val start = now - parseRangeToSeconds(range)
 
@@ -251,6 +254,7 @@ class PrometheusClient(
         .uri(uri)
         .retrieve()
         .body(PromQLRangeResponse::class.java)
+      log.debug("queryRange HTTP call took {}ms", (System.nanoTime() - timerStart) / 1_000_000)
 
       val results = response?.data?.result
       if (response?.status != "success" || results.isNullOrEmpty()) {
