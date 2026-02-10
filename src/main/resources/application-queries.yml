@@ -68,19 +68,3 @@ apptrail:
         category: latency
         sparkline-range: 1h
         sparkline-step: 5m
-
-      - id: latency_p99
-        name: p99 Latency
-        description: 99th percentile response time
-        query: |
-          histogram_quantile(0.99,
-            sum(
-              rate(tapir_request_duration_seconds_bucket{phase="headers", cluster="{{cluster.name}}", namespace="{{namespace}}"}[5m])
-              * on(cluster, namespace, pod) group_left(workload, workload_type)
-              namespace_workload_pod:kube_pod_owner:relabel{workload="{{workload.name}}", namespace="{{namespace}}", cluster="{{cluster.name}}"}
-            ) by (le)
-          ) * 1000
-        unit: milliseconds
-        category: latency
-        sparkline-range: 1h
-        sparkline-step: 5m
