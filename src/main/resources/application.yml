@@ -23,6 +23,9 @@ spring:
     compose:
       lifecycle-management: start-only
       enabled: false
+  threads:
+    virtual:
+      enabled: true
 
 apptrail:
   backfill:
