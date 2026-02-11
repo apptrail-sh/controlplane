@@ -50,7 +50,7 @@ dependencies {
     implementation 'org.bouncycastle:bcpkix-jdk18on:1.83'
 
     // Native Google Cloud Pub/Sub (spring-cloud-gcp-starter-pubsub is not compatible with Spring Boot v4 yet)
-    implementation 'com.google.cloud:google-cloud-pubsub:1.147.0'
+    implementation 'com.google.cloud:google-cloud-pubsub:1.148.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.flywaydb:flyway-database-postgresql'
