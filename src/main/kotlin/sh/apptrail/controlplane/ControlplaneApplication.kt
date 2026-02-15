@@ -5,11 +5,12 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.runApplication
 import org.springframework.scheduling.annotation.EnableScheduling
 import sh.apptrail.controlplane.infrastructure.alerting.prometheus.PrometheusProperties
+import sh.apptrail.controlplane.infrastructure.config.AuthProperties
 import sh.apptrail.controlplane.infrastructure.gitprovider.github.GitHubProperties
 
 @SpringBootApplication
 @EnableScheduling
-@EnableConfigurationProperties(GitHubProperties::class, PrometheusProperties::class)
+@EnableConfigurationProperties(GitHubProperties::class, PrometheusProperties::class, AuthProperties::class)
 class ControlplaneApplication
 
 fun main(args: Array<String>) {

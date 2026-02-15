@@ -15,7 +15,6 @@ class PodService(
   private val nodeRepository: NodeRepository,
   private val clusterService: ClusterService,
   private val workloadInstanceRepository: WorkloadInstanceRepository,
-  private val broadcaster: InfrastructureEventBroadcaster
 ) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -65,14 +64,6 @@ class PodService(
       if (isNew) "created" else "updated",
       podName, cluster.name, namespace, event.eventKind)
 
-    broadcaster.broadcast(InfrastructureEvent(
-      type = if (isNew) InfrastructureEventType.POD_CREATED else InfrastructureEventType.POD_UPDATED,
-      clusterId = cluster.id!!,
-      resourceId = saved.id!!,
-      resourceName = podName,
-      namespace = namespace
-    ))
-
     return saved
   }
 
@@ -87,14 +78,6 @@ class PodService(
     val saved = podRepository.save(pod)
 
     log.debug("Pod marked as deleted: {}/{}/{}", cluster.name, namespace, podName)
-
-    broadcaster.broadcast(InfrastructureEvent(
-      type = InfrastructureEventType.POD_DELETED,
-      clusterId = cluster.id!!,
-      resourceId = saved.id!!,
-      resourceName = podName,
-      namespace = namespace
-    ))
 
     return saved
   }

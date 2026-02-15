@@ -13,7 +13,6 @@ import java.time.Instant
 class NodeService(
   private val nodeRepository: NodeRepository,
   private val clusterService: ClusterService,
-  private val broadcaster: InfrastructureEventBroadcaster
 ) {
 
   private val log = LoggerFactory.getLogger(javaClass)
@@ -54,13 +53,6 @@ class NodeService(
       nodeName, if (isNew) "created" else "updated", cluster.name, event.eventKind
     )
 
-    broadcaster.broadcast(InfrastructureEvent(
-      type = if (isNew) InfrastructureEventType.NODE_CREATED else InfrastructureEventType.NODE_UPDATED,
-      clusterId = cluster.id!!,
-      resourceId = saved.id!!,
-      resourceName = nodeName
-    ))
-
     return saved
   }
 
@@ -74,13 +66,6 @@ class NodeService(
     val saved = nodeRepository.save(node)
 
     log.info("Node marked as deleted: {} in cluster {}", nodeName, cluster.name)
-
-    broadcaster.broadcast(InfrastructureEvent(
-      type = InfrastructureEventType.NODE_DELETED,
-      clusterId = cluster.id!!,
-      resourceId = saved.id!!,
-      resourceName = nodeName
-    ))
 
     return saved
   }

@@ -8,3 +8,7 @@ spring:
         enabled: false
   flyway:
     enabled: true
+
+apptrail:
+  auth:
+    enabled: false
