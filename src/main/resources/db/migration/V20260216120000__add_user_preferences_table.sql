@@ -1,0 +1,8 @@
+CREATE TABLE user_preferences
+(
+    id          BIGSERIAL PRIMARY KEY,
+    user_id     BIGINT      NOT NULL UNIQUE REFERENCES users (id) ON DELETE CASCADE,
+    preferences JSONB       NOT NULL DEFAULT '{}',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
