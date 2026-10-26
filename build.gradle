@@ -51,7 +51,7 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
     // BouncyCastle for PEM key parsing (supports PKCS#1 and PKCS#8, Java 8-25+)
-    implementation 'org.bouncycastle:bcpkix-jdk18on:1.83'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.86'
 
     // Native Google Cloud Pub/Sub (spring-cloud-gcp-starter-pubsub is not compatible with Spring Boot v4 yet)
     implementation 'com.google.cloud:google-cloud-pubsub:1.148.0'
